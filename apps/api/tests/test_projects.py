@@ -1,3 +1,8 @@
+from sqlalchemy import Text
+
+from app.models.scene import Scene
+
+
 def _create_project(client):
     response = client.post(
         "/api/v1/projects",
@@ -151,3 +156,38 @@ def test_update_project_editorial_profile(client):
     assert payload["styleDna"]["voiceReference"] == "Prosa sobria, incisiva y sin grandilocuencia."
     assert payload["editorialJudgment"]["northStar"] == "Cada seccion debe afinar la tesis o complicarla de forma productiva."
     assert payload["antiPatterns"][0]["label"] == "Tesis inflada"
+
+
+def test_create_section_with_long_context_fields(client):
+    project = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Contra el humo",
+            "premise": "Un ensayo sobre claridad, autoridad y autoengaño publico.",
+            "workType": "essay",
+            "structureMode": "section",
+            "genre": "Ensayo filosofico",
+            "audience": "Lectores generales",
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/scenes",
+        json={
+            "title": "El apagon y la vela",
+            "purpose": "Transformar la percepcion del caos en descubrimiento interior.",
+            "brief": "El narrador recuerda los apagones y descubre la lectura como refugio y formacion.",
+            "povCharacter": "Padre narrador dirigiendose a su hijo en segunda persona para sostener intimidad reflexiva.",
+            "location": "El caos como constante en todas las epocas y como las condiciones adversas pueden convertirse en espacios de descubrimiento interior.",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["povCharacter"].startswith("Padre narrador")
+    assert payload["location"].startswith("El caos como constante")
+
+
+def test_scene_context_columns_allow_long_text():
+    assert isinstance(Scene.__table__.c.pov_character.type, Text)
+    assert isinstance(Scene.__table__.c.location.type, Text)
