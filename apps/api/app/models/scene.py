@@ -15,8 +15,10 @@ class Scene(IdMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(255))
     purpose: Mapped[str] = mapped_column(Text)
     brief: Mapped[str] = mapped_column(Text)
-    pov_character: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    location: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # These fields are reused as generic "focus" and "context" labels for
+    # sections, episodes, and modules, so short VARCHAR columns are too tight.
+    pov_character: Mapped[str | None] = mapped_column(Text, nullable=True)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(40), default="backlog")
     planning_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     necessity_assessment: Mapped[dict | None] = mapped_column(JSON, nullable=True)
