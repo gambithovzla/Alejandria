@@ -46,3 +46,12 @@ La revision humana no solo vive al final de la escena:
 - algunas auditorias pueden exigir revisiones humanas explicitas
 - la aprobacion final de escena queda bloqueada si falta esa revision
 - esto preserva la separacion entre criterio tecnico, criterio literario y juicio editorial humano
+
+## 007. Router LLM por tarea con fallback controlado
+
+Se sustituye el mock unico por una estrategia de enrutamiento:
+
+- OpenAI se usa por defecto en planning y auditoria tecnica/adversarial
+- Anthropic se usa por defecto en escritura y auditoria literaria
+- Kimi queda integrado como proveedor opcional, no como juez editorial por defecto
+- `mock` sigue existiendo como fallback explicito para desarrollo local y tests

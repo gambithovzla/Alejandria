@@ -51,7 +51,8 @@ class PipelineService:
                 "sequence_no": scene.sequence_no,
             },
         }
-        plan = self.generator.generate(ScenePlan, "scene_planning", input_payload)
+        plan_result = self.generator.generate(ScenePlan, "scene_planning", input_payload)
+        plan = plan_result.parsed
         scene.planning_payload = plan.model_dump(mode="json")
         scene.necessity_assessment = plan.necessity_test.model_dump(mode="json")
         scene.status = SceneStatus.PLANNED.value
@@ -63,7 +64,7 @@ class PipelineService:
             scene_id=scene.id,
             pipeline_type=PipelineType.SCENE_PLANNING.value,
             status="completed",
-            input_payload=input_payload,
+            input_payload={**input_payload, "llm": self._llm_metadata(plan_result)},
             output_payload=plan.model_dump(mode="json"),
         )
         return scene
@@ -92,7 +93,8 @@ class PipelineService:
                 "draft_markdown": scene.draft_markdown,
             },
         }
-        draft = self.generator.generate(SceneDraft, "scene_writing", input_payload)
+        draft_result = self.generator.generate(SceneDraft, "scene_writing", input_payload)
+        draft = draft_result.parsed
         scene.draft_markdown = draft.excerpt_markdown
         scene.status = SceneStatus.DRAFTED.value
         self.pipeline_repository.create(
@@ -100,7 +102,7 @@ class PipelineService:
             scene_id=scene.id,
             pipeline_type=PipelineType.SCENE_WRITING.value,
             status="completed",
-            input_payload=input_payload,
+            input_payload={**input_payload, "llm": self._llm_metadata(draft_result)},
             output_payload=draft.model_dump(mode="json"),
         )
         return scene
@@ -147,7 +149,8 @@ class PipelineService:
                 "draft_markdown": scene.draft_markdown,
             },
         }
-        audit = self.generator.generate(AuditReport, prompt_name, input_payload)
+        audit_result = self.generator.generate(AuditReport, prompt_name, input_payload)
+        audit = audit_result.parsed
         stored_audit = self.audit_repository.replace_for_scene(scene.id, audit_type, audit)
         scene.status = SceneStatus.REVIEWING.value if audit.decision != AuditDecision.PASS.value else SceneStatus.DRAFTED.value
         self.pipeline_repository.create(
@@ -155,7 +158,18 @@ class PipelineService:
             scene_id=scene.id,
             pipeline_type=pipeline_type,
             status="completed",
-            input_payload=input_payload,
+            input_payload={**input_payload, "llm": self._llm_metadata(audit_result)},
             output_payload=audit.model_dump(mode="json"),
         )
         return stored_audit
+
+    @staticmethod
+    def _llm_metadata(result) -> dict[str, str | bool | None]:
+        return {
+            "requested_provider": result.requested_provider,
+            "requested_model": result.requested_model,
+            "provider": result.provider,
+            "model": result.model,
+            "fallback_used": result.fallback_used,
+            "fallback_reason": result.fallback_reason,
+        }

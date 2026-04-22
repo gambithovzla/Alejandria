@@ -2,11 +2,26 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel
+
 from app.domain.enums import AuditDecision, NecessityDecision
 
 
 class MockLLMProvider:
     """Deterministic provider for MVP scaffolding and tests."""
+
+    provider_name = "mock"
+
+    def generate_structured(
+        self,
+        *,
+        schema: type[BaseModel],
+        prompt_name: str,
+        prompt,
+        payload: dict[str, Any],
+        model: str,
+    ) -> dict[str, Any]:
+        return self.generate(prompt_name, payload)
 
     def generate(self, prompt_name: str, payload: dict[str, Any]) -> dict[str, Any]:
         scene = payload["scene"]

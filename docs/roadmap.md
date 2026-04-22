@@ -34,7 +34,7 @@
 
 ## Fase 4. Integracion LLM real
 
-- proveedor OpenAI
+- router OpenAI + Anthropic + Kimi
 - prompts versionados
-- observabilidad de tokens
-- politicas de seguridad y fallback
+- observabilidad de tokens y coste
+- politicas de seguridad, fallback y circuit breakers

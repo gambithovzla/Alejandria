@@ -32,7 +32,7 @@ NovelEngine/
 - Backend: Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy, PostgreSQL, Alembic
 - Frontend: Next.js App Router, React, TypeScript, Tailwind CSS
 - Persistencia: PostgreSQL en produccion; SQLite soportado en tests
-- Integracion LLM: proveedor abstraido con implementacion `mock` para un scaffold testeable
+- Integracion LLM: router por tarea con OpenAI, Anthropic, Kimi y fallback `mock` para desarrollo y tests
 
 ## Arranque rapido
 
@@ -84,6 +84,24 @@ Este scaffold deja operativo el flujo MVP:
 7. Exportar el proyecto a JSON o Markdown.
 8. Reimportar un proyecto exportado en formato JSON.
 
+## Estrategia LLM recomendada
+
+La configuracion por defecto ya deja cableada una ruta editorial razonable:
+
+- `scene_planning` -> `openai:gpt-5.4-mini`
+- `scene_writing` -> `anthropic:claude-sonnet-4-6`
+- `technical_audit` -> `openai:gpt-5.4`
+- `literary_audit` -> `anthropic:claude-opus-4-7`
+- `adversarial_audit` -> `openai:gpt-5.4`
+- `kimi:kimi-k2.6` queda integrado como proveedor opcional y experimental
+
+Si faltan credenciales, el backend puede caer a `mock` con `NOVEL_ENGINE_LLM_ALLOW_MOCK_FALLBACK=true`.
+
+Endpoints utiles:
+
+- `GET /api/v1/health`
+- `GET /api/v1/health/llm`
+
 ## Verificacion
 
 - `python -m pytest -p no:cacheprovider apps/api/tests -q` pasa en el backend.
@@ -96,3 +114,4 @@ Este scaffold deja operativo el flujo MVP:
 - [Modelo de datos](docs/data-model.md)
 - [Decisiones del MVP](docs/decision-log.md)
 - [Roadmap por fases](docs/roadmap.md)
+- [Estrategia LLM](docs/llm-strategy.md)
