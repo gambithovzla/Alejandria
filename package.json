@@ -1,0 +1,14 @@
+{
+  "name": "novel-engine",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/contracts"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @novel-engine/web",
+    "dev:web": "npm run dev --workspace @novel-engine/web",
+    "lint": "npm run lint --workspace @novel-engine/web",
+    "test:web": "npm run test --workspace @novel-engine/web"
+  }
+}
