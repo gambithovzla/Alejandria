@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.domain.project_structure import unit_label
 from app.domain.enums import ApprovalDecision, AuditDecision, AuditType, NecessityDecision
 from app.schemas.scene import SceneWorkflowSnapshot
 
@@ -14,6 +15,7 @@ class WorkflowConflictError(Exception):
 class SceneWorkflowService:
     @classmethod
     def build_snapshot(cls, scene) -> SceneWorkflowSnapshot:
+        unit = cls._unit_label(scene)
         planning_ready = bool(getattr(scene, "planning_payload", None))
         has_draft = bool((getattr(scene, "draft_markdown", None) or "").strip())
         necessity_payload = getattr(scene, "necessity_assessment", None) or {}
@@ -29,14 +31,14 @@ class SceneWorkflowService:
         pending_human_reviews: list[str] = []
 
         if not planning_ready:
-            blockers.append("Run scene planning before writing or auditing the scene.")
+            blockers.append(f"Run {unit} planning before writing or auditing the {unit}.")
         elif necessity_decision == NecessityDecision.REWORK.value:
-            blockers.append("Scene Necessity Test returned rework. Adjust the brief and rerun planning.")
+            blockers.append(f"The {unit} Necessity Test returned rework. Adjust the brief and rerun planning.")
         elif necessity_decision == NecessityDecision.CUT.value:
-            blockers.append("Scene Necessity Test returned cut. Do not advance this scene without structural changes.")
+            blockers.append(f"The {unit} Necessity Test returned cut. Do not advance this {unit} without structural changes.")
 
         if planning_ready and necessity_passed and not has_draft:
-            blockers.append("Generate or upload a scene draft before audits and approvals.")
+            blockers.append(f"Generate or upload a {unit} draft before audits and approvals.")
 
         for audit_type, audit in (
             (AuditType.TECHNICAL.value, technical_audit),
@@ -59,7 +61,7 @@ class SceneWorkflowService:
         scene_approvals = getattr(scene, "approvals", []) or []
         latest_scene_approval = scene_approvals[0].decision if scene_approvals else None
         if latest_scene_approval in {ApprovalDecision.REQUEST_CHANGES.value, ApprovalDecision.REJECT.value}:
-            blockers.append("The latest scene-level human approval requested changes or rejected the scene.")
+            blockers.append(f"The latest {unit}-level human approval requested changes or rejected the {unit}.")
 
         can_run_writing = planning_ready and necessity_passed
         can_run_technical_audit = planning_ready and has_draft
@@ -83,6 +85,7 @@ class SceneWorkflowService:
             pending_human_reviews=pending_human_reviews,
             can_approve_scene=can_approve_scene,
             latest_scene_approval=latest_scene_approval,
+            unit_label=unit,
         )
 
         return SceneWorkflowSnapshot(
@@ -120,15 +123,16 @@ class SceneWorkflowService:
         pending_human_reviews: list[str],
         can_approve_scene: bool,
         latest_scene_approval: str | None,
+        unit_label: str,
     ) -> str:
         if not planning_ready:
-            return "Run scene planning."
+            return f"Run {unit_label} planning."
         if necessity_decision == NecessityDecision.REWORK.value:
-            return "Rework the scene brief and rerun planning."
+            return f"Rework the {unit_label} brief and rerun planning."
         if necessity_decision == NecessityDecision.CUT.value:
-            return "Cut or replace this scene before continuing."
+            return f"Cut or replace this {unit_label} before continuing."
         if not has_draft:
-            return "Run scene writing."
+            return f"Run {unit_label} writing."
         if technical_audit is None:
             return "Run the technical audit."
         if literary_audit is None:
@@ -138,7 +142,12 @@ class SceneWorkflowService:
         if pending_human_reviews:
             return "Complete the pending human reviews."
         if can_approve_scene and latest_scene_approval != ApprovalDecision.APPROVE.value:
-            return "Approve the scene."
+            return f"Approve the {unit_label}."
         if latest_scene_approval == ApprovalDecision.APPROVE.value:
-            return "Scene approved."
-        return "Inspect blockers and revise the scene."
+            return f"{unit_label.capitalize()} approved."
+        return f"Inspect blockers and revise the {unit_label}."
+
+    @staticmethod
+    def _unit_label(scene) -> str:
+        project = getattr(scene, "project", None)
+        return unit_label(getattr(project, "structure_mode", None))

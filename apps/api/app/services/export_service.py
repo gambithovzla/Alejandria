@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.domain.project_structure import unit_label
 from app.repositories.pipeline_run_repository import PipelineRunRepository
 from app.repositories.project_repository import ProjectRepository
 from app.schemas.export import ProjectExport
@@ -32,10 +33,19 @@ class ExportService:
             return None
 
         project = payload.project
+        unit_labels = {
+            "scene": ("Escena", "Escenas"),
+            "section": ("Seccion", "Secciones"),
+            "episode": ("Episodio", "Episodios"),
+            "module": ("Modulo", "Modulos"),
+        }
+        unit_singular, unit_plural = unit_labels.get(unit_label(project.structure_mode), ("Unidad", "Unidades"))
         lines = [
             f"# {project.title}",
             "",
             f"**Premisa:** {project.premise}",
+            f"**Tipo de libro:** {project.work_type}",
+            f"**Modo estructural:** {project.structure_mode}",
             f"**Genero:** {project.genre}",
             f"**Audiencia:** {project.audience}",
             "",
@@ -44,14 +54,14 @@ class ExportService:
             f"- Tiempo verbal: {project.tense or 'No definido'}",
             f"- Norte editorial: {project.editorial_judgment.north_star}",
             "",
-            "## Escenas",
+            f"## {unit_plural}",
         ]
 
         for scene in sorted(project.scenes, key=lambda item: item.sequence_no):
             lines.extend(
                 [
                     "",
-                    f"### Escena {scene.sequence_no}: {scene.title}",
+                    f"### {unit_singular} {scene.sequence_no}: {scene.title}",
                     f"- Estado: {scene.status}",
                     f"- Proposito: {scene.purpose}",
                     f"- POV: {scene.pov_character or 'No definido'}",

@@ -10,6 +10,8 @@ import type {
   ProjectDetail,
   ProjectSummary,
   SceneSummary,
+  StructureMode,
+  WorkType,
 } from '@novel-engine/contracts'
 
 const SERVER_API_BASE_URL = process.env.NOVEL_ENGINE_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1'
@@ -155,6 +157,8 @@ function mapProjectSummary(item: any): ProjectSummary {
     id: item.id,
     title: item.title,
     premise: item.premise,
+    workType: item.workType,
+    structureMode: item.structureMode,
     genre: item.genre,
     audience: item.audience,
     status: item.status,
@@ -195,11 +199,35 @@ export async function fetchProjectDetail(projectId: string): Promise<ProjectDeta
 export async function createProject(input: {
   title: string
   premise: string
+  workType: WorkType
+  structureMode: StructureMode
   genre: string
   audience: string
 }): Promise<ProjectDetail> {
   const payload = await request<any>('/projects', {
     method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return mapProjectDetail(payload)
+}
+
+export async function updateProject(projectId: string, input: {
+  title: string
+  premise: string
+  workType: WorkType
+  structureMode: StructureMode
+  genre: string
+  audience: string
+  theme: string | null
+  narrativePov: string | null
+  tense: string | null
+  targetLengthWords: number | null
+  styleDna: ProjectDetail['styleDna']
+  editorialJudgment: ProjectDetail['editorialJudgment']
+  antiPatterns: ProjectDetail['antiPatterns']
+}): Promise<ProjectDetail> {
+  const payload = await request<any>(`/projects/${projectId}`, {
+    method: 'PATCH',
     body: JSON.stringify(input),
   })
   return mapProjectDetail(payload)

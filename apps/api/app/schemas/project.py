@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
+from app.domain.project_structure import default_structure_mode
 from app.schemas.base import StrictSchemaModel
 from app.schemas.memory import MemoryItem
 
@@ -31,9 +32,15 @@ class AntiPattern(StrictSchemaModel):
     warning_signs: list[str]
 
 
-class ProjectCreate(StrictSchemaModel):
+WorkType = Literal["novel", "essay", "narrative_nonfiction", "biography", "memoir", "practical", "hybrid"]
+StructureMode = Literal["scene", "section", "episode", "module"]
+
+
+class ProjectEditableFields(StrictSchemaModel):
     title: str
     premise: str
+    work_type: WorkType = "novel"
+    structure_mode: StructureMode = "scene"
     genre: str
     audience: str
     theme: str | None = None
@@ -52,11 +59,27 @@ class ProjectCreate(StrictSchemaModel):
         ]
     )
 
+    @model_validator(mode="after")
+    def normalize_structure_mode(self) -> "ProjectEditableFields":
+        if not getattr(self, "structure_mode", None):
+            self.structure_mode = default_structure_mode(self.work_type)
+        return self
+
+
+class ProjectCreate(ProjectEditableFields):
+    pass
+
+
+class ProjectUpdate(ProjectEditableFields):
+    pass
+
 
 class ProjectSummary(StrictSchemaModel):
     id: str
     title: str
     premise: str
+    work_type: WorkType
+    structure_mode: StructureMode
     genre: str
     audience: str
     status: str

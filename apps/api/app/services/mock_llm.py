@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.domain.project_structure import unit_label
 from app.domain.enums import AuditDecision, NecessityDecision
 from app.services.llm_types import ProviderStructuredResponse
 
@@ -30,87 +31,72 @@ class MockLLMProvider:
         title = scene["title"]
         purpose = scene["purpose"]
         brief = scene["brief"]
-        pov = scene.get("pov_character") or "la protagonista"
-        location = scene.get("location") or "un espacio de presion"
+        work_type = project.get("work_type", "novel")
+        structure_mode = project.get("structure_mode", "scene")
+        unit = project.get("unit_label") or unit_label(structure_mode)
+        pov = self._default_focus(work_type, scene.get("pov_character"))
+        location = self._default_context(work_type, scene.get("location"))
         style = project.get("style_dna", {})
 
         if prompt_name == "scene_planning":
             brief_is_thin = len(brief.split()) < 12
             decision = NecessityDecision.REWORK.value if brief_is_thin else NecessityDecision.KEEP.value
-            conflict = f"{pov} persigue {purpose.lower()} mientras el entorno en {location} empuja en contra."
+            conflict = self._conflict_line(work_type, pov, purpose, location)
             return {
-                "logline": f"{pov} entra en {location} para {purpose.lower()} y sale con una presion nueva.",
+                "logline": self._planning_logline(work_type, unit, pov, purpose, location),
                 "goal": purpose,
                 "conflict": conflict,
-                "turn": f"El intento de {pov} revela un costo inesperado ligado a la premisa del proyecto.",
-                "outcome": f"La escena deja una nueva condicion dramatica para la siguiente secuencia de {title}.",
-                "beats": [
-                    {
-                        "label": "entrada",
-                        "intent": f"Situar a {pov} con un objetivo concreto.",
-                        "escalation": "La informacion inicial no alcanza para actuar con seguridad.",
-                    },
-                    {
-                        "label": "presion",
-                        "intent": "Forzar una eleccion visible.",
-                        "escalation": "El conflicto externo activa una contradiccion interna.",
-                    },
-                    {
-                        "label": "giro",
-                        "intent": "Mover la historia a una posicion distinta.",
-                        "escalation": "La escena termina peor, mas cara o mas urgente que como empezo.",
-                    },
-                ],
+                "turn": self._turn_line(work_type, pov),
+                "outcome": self._outcome_line(work_type, unit, title),
+                "beats": self._beats(work_type, pov),
                 "necessity_test": {
-                    "change_trigger": f"La escena transforma el estado de {pov} frente a '{purpose}'.",
-                    "stakes_if_removed": "Se perderia una pieza de continuidad y la progresion emocional quedaria hueca.",
+                    "change_trigger": f"La {unit} transforma el estado de {pov} frente a '{purpose}'.",
+                    "stakes_if_removed": self._stakes_if_removed(work_type, unit),
                     "conflict_contribution": conflict,
-                    "dramatic_shift": "La escena convierte una intencion en una carga concreta.",
+                    "dramatic_shift": self._movement_line(work_type, unit),
                     "decision": decision,
-                    "rationale": "La escena se mantiene si produce cambio visible; si el brief es demasiado tenue, se marca rework.",
+                    "rationale": f"La {unit} se mantiene si produce cambio visible; si el brief es demasiado tenue, se marca rework.",
                 },
                 "factual_updates": [
                     {
                         "key": f"{title.lower().replace(' ', '_')}_fact",
-                        "statement": f"{pov} descubre un dato operativo relevante en {location}.",
+                        "statement": self._factual_update(work_type, pov, location),
                         "notes": "Registrar solo si afecta continuidad o logica causal.",
                     }
                 ],
                 "dramatic_updates": [
                     {
                         "key": f"{title.lower().replace(' ', '_')}_pressure",
-                        "statement": f"La presion emocional de {pov} aumenta tras perseguir {purpose.lower()}.",
-                        "notes": "Usar para sostener la curva dramatica de escenas siguientes.",
+                        "statement": self._dramatic_update(work_type, unit, pov, purpose),
+                        "notes": "Usar para sostener la curva editorial de unidades siguientes.",
                     }
                 ],
                 "human_review_questions": [
-                    "La escena cambia algo de forma verificable?",
-                    "El conflicto escala o solo informa?",
-                    "La necesidad de la escena sigue siendo defendible sin explicacion externa?",
+                    f"La {unit} cambia algo de forma verificable?",
+                    "El conflicto o la friccion realmente mueve el proyecto?",
+                    f"La necesidad de la {unit} sigue siendo defendible sin explicacion externa?",
                 ],
             }
 
         if prompt_name == "scene_writing":
             plan = scene.get("plan") or {}
-            logline = plan.get("logline", f"{pov} afronta una escena con presion creciente.")
+            logline = plan.get("logline", f"{pov} afronta una {unit} con presion creciente.")
             voice_reference = style.get("voice_reference", "prosa sobria")
             return {
                 "excerpt_markdown": (
                     f"## {title}\n\n"
-                    f"{pov} entro en {location} con una idea simple: {purpose.lower()}. "
-                    f"Pero la escena no le concedio la comodidad de una linea recta. "
-                    f"{logline} La prosa busca {voice_reference.lower()} y deja el golpe emocional en el subtexto.\n\n"
-                    f"Cuando llego el giro, lo que parecia una ventaja se volvio costo. "
-                    f"{pov} entendio que la escena no estaba ahi para explicar el mundo, sino para desplazarlo."
+                    f"{self._writing_opening(work_type, location, pov, purpose)} "
+                    f"{logline} La prosa busca {voice_reference.lower()} y deja el movimiento principal en primer plano.\n\n"
+                    f"{self._writing_turn(work_type, unit, pov)}"
                 ),
-                "writer_intent": "Entregar un borrador de escena enfocado en objetivo, presion y cambio visible sin reescribir un capitulo completo.",
+                "writer_intent": f"Entregar un borrador de {unit} enfocado en progresion, presion y cambio visible sin reescribir el libro completo.",
                 "continuity_notes": [
                     "Verificar que el draft no contradiga memoria factual confirmada.",
                     "Revisar continuidad del tono con style_dna.",
                 ],
                 "open_questions": [
                     "Hace falta mas resistencia externa en el segundo beat?",
-                    "El cierre de la escena deja suficiente arrastre para la siguiente unidad?",
+                    f"El cierre de la {unit} deja suficiente arrastre para la siguiente unidad?",
                 ],
             }
 
@@ -121,9 +107,9 @@ class MockLLMProvider:
                     {
                         "area": "planning",
                         "severity": "critical",
-                        "issue": "La escena no tiene plan validado.",
+                        "issue": f"La {unit} no tiene plan validado.",
                         "evidence": "planning_payload esta vacio.",
-                        "recommended_action": "Ejecutar scene planning antes de seguir.",
+                        "recommended_action": f"Ejecutar planning de la {unit} antes de seguir.",
                         "requires_human_review": False,
                     }
                 )
@@ -132,9 +118,9 @@ class MockLLMProvider:
                     {
                         "area": "draft",
                         "severity": "warning",
-                        "issue": "No existe draft para auditar continuidad fina.",
+                        "issue": f"No existe draft para auditar continuidad fina de la {unit}.",
                         "evidence": "draft_markdown esta vacio.",
-                        "recommended_action": "Generar o cargar un draft de escena.",
+                        "recommended_action": f"Generar o cargar un draft de la {unit}.",
                         "requires_human_review": False,
                     }
                 )
@@ -144,9 +130,9 @@ class MockLLMProvider:
                     {
                         "area": "scene_necessity",
                         "severity": "warning",
-                        "issue": "La escena requiere rework segun su propio Scene Necessity Test.",
+                        "issue": f"La {unit} requiere rework segun su propio Necessity Test.",
                         "evidence": necessity.get("rationale", "Sin racional detallado."),
-                        "recommended_action": "Ajustar el brief o el giro para que el cambio sea inequívoco.",
+                        "recommended_action": "Ajustar el brief o el giro para que el cambio sea inequivoco.",
                         "requires_human_review": True,
                     }
                 )
@@ -155,10 +141,10 @@ class MockLLMProvider:
             return {
                 "audit_type": "technical",
                 "decision": decision,
-                "summary": "Revisa continuidad, causalidad, dependencia del plan y necesidad estructural de la escena.",
+                "summary": f"Revisa continuidad, causalidad, dependencia del plan y necesidad estructural de la {unit}.",
                 "findings": findings,
                 "next_steps": [
-                    "Corregir huecos de continuidad antes de promover la escena.",
+                    f"Corregir huecos de continuidad antes de promover la {unit}.",
                     "No usar esta auditoria como sustituto del juicio literario.",
                 ],
                 "human_review_required": any(item["requires_human_review"] for item in findings),
@@ -172,9 +158,9 @@ class MockLLMProvider:
                     {
                         "area": "density",
                         "severity": "warning",
-                        "issue": "El draft todavia tiene poca densidad dramatica.",
-                        "evidence": "El texto es muy corto para sostener respiracion narrativa.",
-                        "recommended_action": "Expandir el momento de presion y el giro sin salir del alcance de la escena.",
+                        "issue": "El draft todavia tiene poca densidad editorial.",
+                        "evidence": "El texto es muy corto para sostener respiracion propia.",
+                        "recommended_action": f"Expandir el momento de mayor presion sin salir del alcance de la {unit}.",
                         "requires_human_review": False,
                     }
                 )
@@ -194,11 +180,11 @@ class MockLLMProvider:
             return {
                 "audit_type": "literary",
                 "decision": decision,
-                "summary": "Examina tension, voz, subtexto y potencia emocional sin confundirlo con consistencia tecnica.",
+                "summary": "Examina voz, ritmo, potencia expresiva y movimiento de la unidad sin confundirlo con consistencia tecnica.",
                 "findings": findings,
                 "next_steps": [
-                    "Revisar si el ritmo deja un antes y un despues emocional.",
-                    "Comprobar que la escena no explique lo que deberia dramatizar.",
+                    "Revisar si el ritmo deja un antes y un despues claro.",
+                    f"Comprobar que la {unit} no explique lo que deberia mostrar, argumentar o revelar.",
                 ],
                 "human_review_required": any(item["requires_human_review"] for item in findings),
             }
@@ -212,7 +198,7 @@ class MockLLMProvider:
                     {
                         "area": "anti_patterns",
                         "severity": "warning",
-                        "issue": "Existe riesgo de resolver la escena con conveniencia de trama.",
+                        "issue": "Existe riesgo de resolver la unidad con una solucion demasiado facil.",
                         "evidence": "El anti_pattern fue declarado en la configuracion editorial.",
                         "recommended_action": "Forzar costo, friccion y perdida visible en la resolucion.",
                         "requires_human_review": True,
@@ -221,7 +207,7 @@ class MockLLMProvider:
             return {
                 "audit_type": "adversarial",
                 "decision": AuditDecision.PASS_WITH_NOTES.value if findings else AuditDecision.PASS.value,
-                "summary": "Busca debilidades explotables: conveniencias, cliches y autoindulgencias del borrador.",
+                "summary": "Busca debilidades explotables: conveniencias, cliches, autoindulgencias o razonamiento blando.",
                 "findings": findings,
                 "next_steps": [
                     "Usar esta auditoria como red team editorial, no como juez unico.",
@@ -230,3 +216,163 @@ class MockLLMProvider:
             }
 
         raise ValueError(f"Unsupported prompt: {prompt_name}")
+
+    @staticmethod
+    def _default_focus(work_type: str, value: str | None) -> str:
+        if value:
+            return value
+        if work_type == "essay":
+            return "la voz ensayistica"
+        if work_type == "practical":
+            return "la voz guia"
+        if work_type in {"biography", "memoir", "narrative_nonfiction"}:
+            return "la figura central"
+        return "la protagonista"
+
+    @staticmethod
+    def _default_context(work_type: str, value: str | None) -> str:
+        if value:
+            return value
+        if work_type == "essay":
+            return "el marco argumental"
+        if work_type == "practical":
+            return "el problema operativo"
+        if work_type in {"biography", "memoir", "narrative_nonfiction"}:
+            return "el contexto real en presion"
+        return "un espacio de presion"
+
+    @staticmethod
+    def _conflict_line(work_type: str, pov: str, purpose: str, location: str) -> str:
+        if work_type == "essay":
+            return f"{pov} persigue {purpose.lower()} mientras una objecion fuerte dentro de {location} empuja en contra."
+        if work_type == "practical":
+            return f"{pov} intenta {purpose.lower()} mientras una limitacion real en {location} vuelve mas costosa la promesa."
+        return f"{pov} persigue {purpose.lower()} mientras el entorno en {location} empuja en contra."
+
+    @staticmethod
+    def _planning_logline(work_type: str, unit: str, pov: str, purpose: str, location: str) -> str:
+        if work_type == "essay":
+            return f"{pov} entra en {location} para sostener {purpose.lower()} y sale con una tesis mas precisa y mas exigente."
+        if work_type == "practical":
+            return f"{pov} usa {location} para aterrizar {purpose.lower()} y deja un metodo mas claro pero mas exigente."
+        return f"{pov} entra en {location} para {purpose.lower()} y sale con una presion nueva en la {unit}."
+
+    @staticmethod
+    def _turn_line(work_type: str, pov: str) -> str:
+        if work_type == "essay":
+            return f"El desarrollo de {pov} encuentra una objecion que obliga a afinar la tesis en lugar de repetirla."
+        if work_type == "practical":
+            return f"El intento de {pov} revela una friccion aplicable que corrige la solucion demasiado facil."
+        return f"El intento de {pov} revela un costo inesperado ligado a la premisa del proyecto."
+
+    @staticmethod
+    def _outcome_line(work_type: str, unit: str, title: str) -> str:
+        if work_type == "essay":
+            return f"La {unit} deja una pregunta mas fina y una posicion mas defendible para la siguiente unidad de {title}."
+        if work_type == "practical":
+            return f"La {unit} deja un aprendizaje operativo listo para ampliarse en la siguiente unidad de {title}."
+        return f"La {unit} deja una nueva condicion dramatica para la siguiente secuencia de {title}."
+
+    @staticmethod
+    def _beats(work_type: str, pov: str) -> list[dict[str, str]]:
+        if work_type == "essay":
+            return [
+                {
+                    "label": "pregunta",
+                    "intent": f"Situar a {pov} ante una pregunta concreta.",
+                    "escalation": "La primera formulacion de la idea resulta insuficiente.",
+                },
+                {
+                    "label": "friccion",
+                    "intent": "Introducir la objecion o tension central.",
+                    "escalation": "La idea tiene que probarse contra resistencia real.",
+                },
+                {
+                    "label": "sintesis",
+                    "intent": "Cerrar con una version mas precisa y util.",
+                    "escalation": "La respuesta final abre una exigencia nueva para la siguiente unidad.",
+                },
+            ]
+        if work_type == "practical":
+            return [
+                {
+                    "label": "problema",
+                    "intent": f"Delimitar lo que {pov} quiere resolver.",
+                    "escalation": "La solucion obvia demuestra ser incompleta.",
+                },
+                {
+                    "label": "friccion",
+                    "intent": "Mostrar el costo o la restriccion real.",
+                    "escalation": "La aplicacion exige una decision mas concreta.",
+                },
+                {
+                    "label": "metodo",
+                    "intent": "Cerrar con una accion aplicable.",
+                    "escalation": "El metodo deja una siguiente capa de complejidad.",
+                },
+            ]
+        return [
+            {
+                "label": "entrada",
+                "intent": f"Situar a {pov} con un objetivo concreto.",
+                "escalation": "La informacion inicial no alcanza para actuar con seguridad.",
+            },
+            {
+                "label": "presion",
+                "intent": "Forzar una eleccion visible.",
+                "escalation": "El conflicto externo activa una contradiccion interna.",
+            },
+            {
+                "label": "giro",
+                "intent": "Mover la historia a una posicion distinta.",
+                "escalation": "La unidad termina peor, mas cara o mas urgente que como empezo.",
+            },
+        ]
+
+    @staticmethod
+    def _stakes_if_removed(work_type: str, unit: str) -> str:
+        if work_type == "essay":
+            return f"Se perderia un paso del razonamiento y la progresion intelectual de la {unit} quedaria hueca."
+        if work_type == "practical":
+            return f"Se perderia un paso operativo y la promesa util de la {unit} quedaria incompleta."
+        return f"Se perderia una pieza de continuidad y la progresion emocional de la {unit} quedaria hueca."
+
+    @staticmethod
+    def _movement_line(work_type: str, unit: str) -> str:
+        if work_type == "essay":
+            return f"La {unit} convierte una intuicion en una posicion mas precisa y mas dificil."
+        if work_type == "practical":
+            return f"La {unit} convierte una intencion en una accion aplicable con friccion real."
+        return f"La {unit} convierte una intencion en una carga concreta."
+
+    @staticmethod
+    def _factual_update(work_type: str, pov: str, location: str) -> str:
+        if work_type == "essay":
+            return f"{pov} fija un marco conceptual reutilizable dentro de {location}."
+        if work_type == "practical":
+            return f"{pov} aterriza un criterio operativo relevante dentro de {location}."
+        return f"{pov} descubre un dato operativo relevante en {location}."
+
+    @staticmethod
+    def _dramatic_update(work_type: str, unit: str, pov: str, purpose: str) -> str:
+        if work_type == "essay":
+            return f"La tension intelectual de {pov} aumenta tras intentar {purpose.lower()} en la {unit}."
+        if work_type == "practical":
+            return f"La presion aplicada de {pov} aumenta tras intentar {purpose.lower()} en la {unit}."
+        return f"La presion emocional de {pov} aumenta tras perseguir {purpose.lower()} en la {unit}."
+
+    @staticmethod
+    def _writing_opening(work_type: str, location: str, pov: str, purpose: str) -> str:
+        if work_type == "essay":
+            return f"{pov} entra en {location} con una pregunta concreta: {purpose.lower()}."
+        if work_type == "practical":
+            return f"{pov} parte de {location} con una tarea concreta: {purpose.lower()}."
+        return f"{pov} entro en {location} con una idea simple: {purpose.lower()}."
+
+    @staticmethod
+    def _writing_turn(work_type: str, unit: str, pov: str) -> str:
+        if work_type == "essay":
+            return f"Cuando aparecio la objecion fuerte, la {unit} dejo de explicar y empezo a demostrar. {pov} entendio que la idea solo valia si soportaba friccion real."
+        if work_type == "practical":
+            return f"Cuando aparecio la limitacion real, la {unit} dejo de prometer y empezo a operar. {pov} entendio que el metodo solo servia si soportaba costo, contexto y secuencia."
+        return f"Cuando llego el giro, lo que parecia una ventaja se volvio costo. {pov} entendio que la {unit} no estaba ahi para explicar el mundo, sino para desplazarlo."

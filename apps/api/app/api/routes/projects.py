@@ -7,7 +7,7 @@ from app.repositories.pipeline_run_repository import PipelineRunRepository
 from app.repositories.scene_repository import SceneRepository
 from app.schemas.export import ProjectExport
 from app.schemas.pipeline import PipelineRunSummary
-from app.schemas.project import ProjectCreate, ProjectDetail, ProjectSummary
+from app.schemas.project import ProjectCreate, ProjectDetail, ProjectSummary, ProjectUpdate
 from app.schemas.scene import SceneCreate, SceneSummary
 from app.services.export_service import ExportService
 from app.services.import_service import ImportService
@@ -35,6 +35,17 @@ def get_project(project_id: str, db: Session = Depends(get_db)) -> ProjectDetail
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return ProjectDetail.model_validate(project)
+
+
+@router.patch("/{project_id}", response_model=ProjectDetail)
+def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depends(get_db)) -> ProjectDetail:
+    repository = ProjectRepository(db)
+    project = repository.get(project_id)
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    repository.update(project, payload)
+    db.commit()
+    return ProjectDetail.model_validate(repository.get_detail(project.id))
 
 
 @router.post("/{project_id}/scenes", response_model=SceneSummary, status_code=status.HTTP_201_CREATED)

@@ -20,10 +20,12 @@ import { ProjectCreateForm } from '@/components/forms/project-create-form'
 import { SceneCreateForm } from '@/components/forms/scene-create-form'
 import { createAuditApproval, createSceneApproval, getExportUrl, runAudit, runScenePlanning, runSceneWriting, updateMemory } from '@/lib/api'
 import { ApprovalComposer } from '@/components/projects/approval-composer'
+import { ProjectEditorialProfileForm } from '@/components/projects/project-editorial-profile-form'
 import { ProjectLLMConsole } from '@/components/projects/project-llm-console'
 import { ProjectMemoryBoard } from '@/components/projects/project-memory-board'
 import { ProjectPipelineTimeline } from '@/components/projects/project-pipeline-timeline'
 import { SceneWorkflowPanel } from '@/components/projects/scene-workflow-panel'
+import { getProjectStructureCopy, getWorkTypeLabel } from '@/lib/project-structure'
 
 interface ProjectDashboardProps {
   llmHealth: LLMHealthStatus | null
@@ -36,6 +38,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
   const router = useRouter()
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const selectedProjectCopy = selectedProject ? getProjectStructureCopy(selectedProject.structureMode) : null
 
   async function handlePipeline(sceneId: string, action: 'plan' | 'write' | AuditType) {
     const key = `${sceneId}:${action}`
@@ -109,6 +112,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
 
             {projects.map((project) => {
               const isActive = selectedProject?.id === project.id
+              const structureCopy = getProjectStructureCopy(project.structureMode)
               return (
                 <Link
                   className={`rounded-[22px] border p-4 transition ${
@@ -120,10 +124,12 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-ink">{project.title}</p>
-                      <p className="mt-1 text-sm text-ink/68">{project.genre}</p>
+                      <p className="mt-1 text-sm text-ink/68">
+                        {getWorkTypeLabel(project.workType)} / {project.genre}
+                      </p>
                     </div>
                     <span className="rounded-full border border-ink/10 px-2 py-1 text-xs text-ink/68">
-                      {project.sceneCount} escenas
+                      {project.sceneCount} {structureCopy.countLabel}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-ink/72">{project.premise}</p>
@@ -148,6 +154,13 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                     <p className="text-xs uppercase tracking-[0.34em] text-plum">Proyecto activo</p>
                     <h2 className="font-[family-name:var(--font-display)] text-4xl text-ink">{selectedProject.title}</h2>
                     <p className="max-w-3xl text-sm leading-6 text-ink/74">{selectedProject.premise}</p>
+                    <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.22em] text-ink/60">
+                      <span className="rounded-full border border-ink/10 px-3 py-1">{getWorkTypeLabel(selectedProject.workType)}</span>
+                      <span className="rounded-full border border-ink/10 px-3 py-1">{selectedProject.genre}</span>
+                      <span className="rounded-full border border-ink/10 px-3 py-1">
+                        Modo {selectedProjectCopy?.singularTitle}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-3">
@@ -189,12 +202,27 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                     <p>
                       Memoria dramatica: {selectedProject.memories.filter((memory) => memory.kind === 'dramatic').length}
                     </p>
-                    <p>Escenas activas: {selectedProject.scenes.length}</p>
+                    <p>
+                      {selectedProjectCopy?.pluralTitle}: {selectedProject.scenes.length}
+                    </p>
                     <p>Runs registrados: {pipelineRuns.length}</p>
                     <p>Sin score unico: las auditorias permanecen separadas.</p>
                   </div>
                 </div>
               </div>
+            </section>
+
+            <section className="editorial-card rounded-[28px] p-5 md:p-6">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.28em] text-plum">Perfil editable</p>
+                  <h3 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-ink">Carta editorial del proyecto</h3>
+                </div>
+                <span className="rounded-full border border-ink/10 bg-white/35 px-3 py-2 text-xs uppercase tracking-[0.24em] text-ink/64">
+                  Style DNA, judgment y anti-patterns editables
+                </span>
+              </div>
+              <ProjectEditorialProfileForm project={selectedProject} />
             </section>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
@@ -209,22 +237,22 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
             <section className="editorial-card rounded-[28px] p-5 md:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-plum">Scene planning board</p>
-                  <h3 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-ink">Escenas</h3>
+                  <p className="text-xs uppercase tracking-[0.28em] text-plum">{selectedProjectCopy?.boardEyebrow}</p>
+                  <h3 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-ink">{selectedProjectCopy?.boardTitle}</h3>
                 </div>
                 <span className="rounded-full border border-ink/10 bg-white/35 px-3 py-2 text-xs uppercase tracking-[0.24em] text-ink/64">
-                  Scene Necessity Test obligatorio
+                  {selectedProjectCopy?.planningHint}
                 </span>
               </div>
 
               <div className="mb-6">
-                <SceneCreateForm projectId={selectedProject.id} />
+                <SceneCreateForm projectId={selectedProject.id} structureMode={selectedProject.structureMode} />
               </div>
 
               <div className="grid gap-4">
                 {selectedProject.scenes.length === 0 ? (
                   <div className="rounded-[24px] border border-dashed border-ink/15 bg-white/30 p-6 text-sm text-ink/68">
-                    No hay escenas aun. El flujo MVP empieza creando una escena y luego corriendo planning, writing y auditorias.
+                    {selectedProjectCopy?.emptyState}
                   </div>
                 ) : null}
 
@@ -234,13 +262,15 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                       <div className="space-y-3">
                         <div>
                           <p className="text-xs uppercase tracking-[0.28em] text-moss">
-                            Escena {scene.sequenceNo} / {scene.status}
+                            {selectedProjectCopy?.singularTitle} {scene.sequenceNo} / {scene.status}
                           </p>
                           <h4 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-ink">{scene.title}</h4>
                         </div>
                         <p className="text-sm leading-6 text-ink/74">{scene.brief}</p>
                         <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.22em] text-ink/60">
-                          <span className="rounded-full border border-ink/10 px-3 py-1">POV {scene.povCharacter || 'sin definir'}</span>
+                          <span className="rounded-full border border-ink/10 px-3 py-1">
+                            Foco {scene.povCharacter || 'sin definir'}
+                          </span>
                           <span className="rounded-full border border-ink/10 px-3 py-1">{scene.location || 'sin localizacion'}</span>
                           <span className="rounded-full border border-ink/10 px-3 py-1">
                             Necesidad {scene.necessityAssessment?.decision || 'pendiente'}
@@ -255,7 +285,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                         <PipelineButton
                           busyKey={busyKey}
                           disabled={false}
-                          hint="Scene Necessity Test y memorias se regeneran aqui."
+                          hint={`La prueba de necesidad de la ${selectedProjectCopy?.singular} y las memorias se regeneran aqui.`}
                           label="Planificar"
                           onClick={() => handlePipeline(scene.id, 'plan')}
                           sceneId={scene.id}
@@ -265,7 +295,11 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                         <PipelineButton
                           busyKey={busyKey}
                           disabled={!scene.workflow.canRunWriting}
-                          hint={scene.workflow.canRunWriting ? 'Genera el draft de escena.' : scene.workflow.blockers.join(' ')}
+                          hint={
+                            scene.workflow.canRunWriting
+                              ? `Genera el draft de la ${selectedProjectCopy?.singular}.`
+                              : scene.workflow.blockers.join(' ')
+                          }
                           label="Redactar"
                           onClick={() => handlePipeline(scene.id, 'write')}
                           sceneId={scene.id}
@@ -317,14 +351,14 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                             </p>
                           </div>
                         ) : (
-                          <p className="mt-3 text-sm text-ink/58">Todavia no hay plan validado.</p>
+                          <p className="mt-3 text-sm text-ink/58">{selectedProjectCopy?.planningEmpty}</p>
                         )}
                       </section>
 
                       <section className="rounded-[22px] border border-ink/10 bg-[#fffdf9]/70 p-4">
                         <p className="text-xs uppercase tracking-[0.26em] text-brass">Draft</p>
                         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink/76">
-                          {scene.draftMarkdown || 'Todavia no hay draft de escena.'}
+                          {scene.draftMarkdown || selectedProjectCopy?.draftEmpty}
                         </p>
                       </section>
 
@@ -333,7 +367,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
 
                     <div className="mt-5 grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
                       <section className="rounded-[22px] border border-ink/10 bg-white/45 p-4">
-                        <p className="text-xs uppercase tracking-[0.26em] text-moss">Scene Necessity Test</p>
+                        <p className="text-xs uppercase tracking-[0.26em] text-moss">{selectedProjectCopy?.necessityLabel}</p>
                         {scene.necessityAssessment ? (
                           <div className="mt-3 space-y-2 text-sm text-ink/76">
                             <p>{scene.necessityAssessment.changeTrigger}</p>
@@ -347,7 +381,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
 
                       <section className="rounded-[22px] border border-ink/10 bg-white/45 p-4">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-[0.26em] text-moss">Aprobacion de escena</p>
+                          <p className="text-xs uppercase tracking-[0.26em] text-moss">{selectedProjectCopy?.approvalLabel}</p>
                           <span className="rounded-full border border-ink/10 px-2 py-1 text-xs uppercase tracking-[0.18em] text-ink/66">
                             {scene.workflow.latestSceneApprovalDecision || 'pending'}
                           </span>
@@ -357,7 +391,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                             disabled={!scene.workflow.canApproveScene}
                             initialNotes="Lista para revision global."
                             onSubmit={(input) => handleSceneApproval(scene.id, input)}
-                            submitLabel="Registrar aprobacion de escena"
+                            submitLabel={`Registrar aprobacion de ${selectedProjectCopy?.singular}`}
                           />
                         </div>
                       </section>
@@ -390,8 +424,8 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
               <p className="text-xs uppercase tracking-[0.34em] text-plum">MVP</p>
               <h2 className="font-[family-name:var(--font-display)] text-4xl text-ink">Selecciona un proyecto para abrir la mesa editorial.</h2>
               <p className="text-sm leading-6 text-ink/72">
-                El flujo minimo ya soporta proyecto, escenas, memoria factual y dramatica, auditorias separadas, aprobacion
-                humana y export legible.
+                El flujo minimo ya soporta proyecto, unidades de trabajo, memoria factual y dramatica, auditorias separadas,
+                aprobacion humana y export legible.
               </p>
             </div>
           </section>

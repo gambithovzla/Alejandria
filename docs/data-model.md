@@ -3,7 +3,7 @@
 ## Principios
 
 - El proyecto es la unidad editorial principal.
-- La escena es la unidad operativa de planificacion, escritura y revision.
+- La escena sigue siendo la unidad operativa interna del MVP, pero puede reinterpretarse como seccion, episodio o modulo segun `work_type` y `structure_mode`.
 - La memoria se separa en factual y dramatica.
 - Las auditorias no colapsan en una puntuacion unica.
 - Los pipelines generan artefactos persistentes y auditables.
@@ -16,6 +16,8 @@ Contiene identidad editorial y configuracion creativa:
 
 - `title`
 - `premise`
+- `work_type`
+- `structure_mode`
 - `genre`
 - `audience`
 - `theme`
@@ -28,7 +30,7 @@ Contiene identidad editorial y configuracion creativa:
 
 ### `scenes`
 
-Unidad minima de trabajo:
+Unidad minima de trabajo scene-first, reinterpretada en UI y prompting segun el tipo de libro:
 
 - `project_id`
 - `sequence_no`
@@ -92,7 +94,7 @@ El MVP tambien calcula un snapshot de workflow por escena, pero no lo persiste c
 
 Incluye:
 
-- si la escena paso el Scene Necessity Test
+- si la unidad paso el Necessity Test
 - que pipeline puede correr a continuacion
 - blockers editoriales
 - siguiente accion recomendada
@@ -105,9 +107,9 @@ Esto se recalcula desde:
 - `approvals`
 - `project_memories`
 
-## Scene Necessity Test
+## Necessity Test
 
-Toda escena planificada debe registrar:
+Toda unidad planificada debe registrar:
 
 - que cambia realmente
 - que se rompe si la escena desaparece
@@ -117,6 +119,6 @@ Toda escena planificada debe registrar:
 
 ## Notas de alcance
 
-- No hay tabla de capitulos en el MVP. `chapter_label` cubre la necesidad inmediata sin elevar complejidad.
+- No hay tabla de capitulos o secciones en el MVP. `chapter_label` cubre la necesidad inmediata sin elevar complejidad.
 - No hay versionado fino por parrafo todavia. La trazabilidad vive primero en `pipeline_runs`, auditorias y aprobaciones.
-- `style_dna`, `editorial_judgment` y `anti_patterns` viven en `projects` para que el briefing editorial sea global.
+- `style_dna`, `editorial_judgment` y `anti_patterns` viven en `projects` para que la carta editorial global sea editable.

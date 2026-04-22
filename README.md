@@ -1,12 +1,12 @@
 # NovelEngine
 
-NovelEngine es un estudio editorial asistido por IA para novelas largas. El foco del MVP no es conversar con el usuario, sino sostener un flujo editorial estructurado para planificar, escribir, auditar y revisar escenas con memoria factual y dramática.
+NovelEngine es un estudio editorial asistido por IA para libros largos. El foco del MVP no es conversar con el usuario, sino sostener un flujo editorial estructurado para planificar, escribir, auditar y revisar unidades de trabajo con memoria factual y dramatica.
 
 ## Principios del MVP
 
 - Calidad tecnica y calidad literaria viven en pipelines separados.
 - No existe un score unico de aprobacion.
-- La escritura automatica trabaja a nivel de escena, no reescribe capitulos completos por defecto.
+- La escritura automatica trabaja a nivel de unidad, no reescribe capitulos completos por defecto.
 - Toda salida estructurada pasa por schemas estrictos de Pydantic.
 - La revision humana y las aprobaciones quedan registradas.
 - Exportar e importar el proyecto debe producir archivos Markdown y JSON legibles.
@@ -17,7 +17,7 @@ NovelEngine es un estudio editorial asistido por IA para novelas largas. El foco
 NovelEngine/
   apps/
     api/   -> FastAPI, SQLAlchemy, Alembic, tests
-    web/   -> Next.js App Router, TypeScript, Tailwind
+    web/   -> Next.js App Router, React, TypeScript, Tailwind
   packages/
     contracts/ -> Tipos compartidos para el frontend
   docs/
@@ -70,19 +70,20 @@ npm run dev:web
 
 Este scaffold deja operativo el flujo MVP:
 
-1. Crear un proyecto editorial con `style_dna`, `editorial_judgment` y `anti_patterns`.
-2. Crear escenas.
+1. Crear un proyecto editorial con `work_type`, `structure_mode`, `style_dna`, `editorial_judgment` y `anti_patterns`.
+2. Crear unidades de trabajo scene-first reinterpretables como escenas, secciones, episodios o modulos.
 3. Ejecutar pipelines con gating minimo de workflow:
    - scene planning
    - scene writing
    - technical audit
    - literary audit
    - adversarial audit
-4. Registrar aprobaciones humanas sobre escenas y auditorias.
+4. Registrar aprobaciones humanas sobre unidades y auditorias.
 5. Confirmar o retirar memorias factuales y dramaticas.
 6. Consultar timeline de `pipeline_runs` por proyecto.
 7. Exportar el proyecto a JSON o Markdown.
 8. Reimportar un proyecto exportado en formato JSON.
+9. Editar la carta editorial del proyecto desde la UI y `PATCH /api/v1/projects/{id}`.
 
 ## Estrategia LLM recomendada
 
@@ -101,12 +102,12 @@ Endpoints utiles:
 
 - `GET /api/v1/health`
 - `GET /api/v1/health/llm`
+- `PATCH /api/v1/projects/{id}`
 
 ## Verificacion
 
-- `python -m pytest -p no:cacheprovider apps/api/tests -q` pasa en el backend.
-- `npm run build` pasa en el frontend.
-- El flujo documentado del backend tambien fue validado dentro de `.venv`.
+- `python -m pytest -p no:cacheprovider apps/api/tests -q`
+- `npm run build`
 
 ## Documentacion inicial
 

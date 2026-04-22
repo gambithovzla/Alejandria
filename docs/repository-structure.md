@@ -43,4 +43,4 @@ NovelEngine/
 - `services/` orquesta reglas y persistencia, evitando meter logica compleja en routers.
 - `schemas/` concentra los contratos estrictos para entradas, salidas y respuestas del LLM.
 - `packages/contracts` permite que el frontend comparta nomenclatura de estados y payloads sin acoplarse a Pydantic.
-- El dominio se mantiene scene-first, porque el MVP quiere demostrar memoria, auditoria y aprobacion escena por escena antes de escalar a arcos mas complejos.
+- El dominio se mantiene scene-first, porque el MVP quiere demostrar memoria, auditoria y aprobacion unidad por unidad antes de escalar a un refactor mas profundo hacia entidades mas genericas.
