@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.domain.project_structure import build_structure_guidance, unit_label, unit_label_plural
 from app.domain.enums import AuditDecision, AuditType, MemoryKind, NecessityDecision, PipelineType, SceneStatus
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.memory_repository import MemoryRepository
@@ -33,10 +34,11 @@ class PipelineService:
             return None
         project = self.project_repository.get(scene.project_id)
         assert project is not None
+        project_context = self._project_prompt_context(project)
 
         input_payload = {
             "project": {
-                "title": project.title,
+                **project_context,
                 "premise": project.premise,
                 "style_dna": project.style_dna,
                 "editorial_judgment": project.editorial_judgment,
@@ -78,10 +80,11 @@ class PipelineService:
         workflow = scene.workflow
         if not workflow.can_run_writing:
             raise WorkflowConflictError("Scene writing is blocked by the current workflow state.", workflow.blockers)
+        project_context = self._project_prompt_context(project)
 
         input_payload = {
             "project": {
-                "title": project.title,
+                **project_context,
                 "style_dna": project.style_dna,
                 "editorial_judgment": project.editorial_judgment,
             },
@@ -114,6 +117,7 @@ class PipelineService:
         project = self.project_repository.get(scene.project_id)
         assert project is not None
         workflow = scene.workflow
+        project_context = self._project_prompt_context(project)
         can_run = {
             AuditType.TECHNICAL: workflow.can_run_technical_audit,
             AuditType.LITERARY: workflow.can_run_literary_audit,
@@ -134,7 +138,7 @@ class PipelineService:
         }[audit_type]
         input_payload = {
             "project": {
-                "title": project.title,
+                **project_context,
                 "style_dna": project.style_dna,
                 "editorial_judgment": project.editorial_judgment,
                 "anti_patterns": project.anti_patterns,
@@ -162,6 +166,21 @@ class PipelineService:
             output_payload=audit.model_dump(mode="json"),
         )
         return stored_audit
+
+    @staticmethod
+    def _project_prompt_context(project) -> dict[str, str]:
+        structure_mode = getattr(project, "structure_mode", None)
+        work_type = getattr(project, "work_type", None)
+        return {
+            "title": project.title,
+            "genre": project.genre,
+            "audience": project.audience,
+            "work_type": work_type or "novel",
+            "structure_mode": structure_mode or "scene",
+            "unit_label": unit_label(structure_mode),
+            "unit_label_plural": unit_label_plural(structure_mode),
+            "structure_guidance": build_structure_guidance(work_type, structure_mode),
+        }
 
     @staticmethod
     def _llm_metadata(result) -> dict[str, str | bool | None]:

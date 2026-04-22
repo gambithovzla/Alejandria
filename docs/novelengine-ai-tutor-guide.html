@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>NovelEngine AI Tutor Guide</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --paper: #fffdf8;
+      --ink: #2d2822;
+      --muted: #6f6558;
+      --line: #d7cbbd;
+      --accent: #8a6436;
+      --accent-soft: #efe1ce;
+    }
+
+    @page {
+      size: A4;
+      margin: 18mm;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.55;
+    }
+
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 40px 56px;
+      background: var(--paper);
+    }
+
+    h1, h2, h3 {
+      line-height: 1.15;
+      margin: 0 0 12px;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 22px;
+      margin-top: 32px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+
+    h3 {
+      font-size: 17px;
+      margin-top: 22px;
+    }
+
+    p, li {
+      font-size: 14px;
+    }
+
+    ul, ol {
+      padding-left: 22px;
+      margin: 10px 0 14px;
+    }
+
+    .lede {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      background: #fffaf2;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin: 14px 0;
+    }
+
+    .box strong {
+      color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: var(--accent-soft);
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: #f4ecdf;
+      padding: 1px 5px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>NovelEngine: Guia operativa para otra IA</h1>
+    <p class="lede">
+      Documento base para una IA tutora que deba explicar, acompanar y responder preguntas sobre el sistema NovelEngine.
+      Esta guia describe el sistema real segun el codigo del repositorio, no una interpretacion libre.
+    </p>
+
+    <div class="box">
+      <p><strong>Objetivo del documento.</strong> Que otra IA entienda que es NovelEngine, que hace cada parte, cual es el flujo correcto de uso y como debe orientar al usuario paso a paso sin inventar capacidades que el sistema no tiene.</p>
+    </div>
+
+    <h2>1. Que es NovelEngine</h2>
+    <p>
+      NovelEngine es un estudio editorial asistido por IA. Su foco no es conversar libremente con el usuario como si fuera un chat,
+      sino sostener un flujo editorial estructurado basado en unidades pequenas de trabajo.
+    </p>
+    <p>
+      En el MVP actual, la unidad operativa principal es la <strong>escena</strong>. Todo el sistema gira alrededor de crear escenas,
+      planificarlas, redactarlas, auditarlas, registrarlas en memoria y aprobarlas de forma humana.
+    </p>
+
+    <h3>Principios del sistema</h3>
+    <ul>
+      <li>La calidad tecnica y la calidad literaria viven en auditorias separadas.</li>
+      <li>No existe una puntuacion unica que resuma toda la calidad del texto.</li>
+      <li>La reescritura automatica trabaja por escena, no por capitulo completo.</li>
+      <li>Las salidas estructuradas pasan por esquemas estrictos.</li>
+      <li>La aprobacion humana queda registrada y forma parte del workflow.</li>
+      <li>El workflow de cada escena se calcula a partir de su estado real, no de una tabla aparte.</li>
+      <li>El sistema puede exportar e importar proyectos en JSON y exportar Markdown.</li>
+    </ul>
+
+    <h3>Lo que NovelEngine no es</h3>
+    <ul>
+      <li>No es un chatbot generalista.</li>
+      <li>No es un editor de documentos largo con versionado fino por parrafo.</li>
+      <li>No es un sistema de aprobacion por score.</li>
+      <li>No es un sistema centrado en capitulos: el MVP es scene-first.</li>
+    </ul>
+
+    <h2>2. Modelo conceptual del sistema</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Entidad</th>
+          <th>Rol</th>
+          <th>Campos/ideas clave</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>project</code></td>
+          <td>Unidad editorial principal</td>
+          <td>Titulo, premisa, genero, audiencia, <code>style_dna</code>, <code>editorial_judgment</code>, <code>anti_patterns</code></td>
+        </tr>
+        <tr>
+          <td><code>scene</code></td>
+          <td>Unidad operativa minima</td>
+          <td>Titulo, proposito, brief, POV, localizacion, plan, necessity assessment, draft, auditorias, approvals</td>
+        </tr>
+        <tr>
+          <td><code>project_memory</code></td>
+          <td>Memoria estructurada del proyecto</td>
+          <td><code>kind</code> factual/dramatic, <code>status</code> candidate/confirmed/retired, <code>source_scene_id</code></td>
+        </tr>
+        <tr>
+          <td><code>audit</code></td>
+          <td>Revision especializada</td>
+          <td><code>technical</code>, <code>literary</code>, <code>adversarial</code>; decision, findings, next steps, human review flag</td>
+        </tr>
+        <tr>
+          <td><code>pipeline_run</code></td>
+          <td>Trazabilidad</td>
+          <td>Tipo de pipeline, estado, input, output, error, metadata del LLM</td>
+        </tr>
+        <tr>
+          <td><code>approval</code></td>
+          <td>Juicio humano</td>
+          <td>Aplica a escenas o auditorias; decision approve/request_changes/reject</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Global vs local</h3>
+    <ul>
+      <li><strong>Global al proyecto:</strong> <code>style_dna</code>, <code>editorial_judgment</code>, <code>anti_patterns</code>.</li>
+      <li><strong>Local a la escena:</strong> brief, plan, necessity test, draft, auditorias, aprobaciones.</li>
+      <li><strong>Compartido por el proyecto:</strong> memoria factual y dramatica.</li>
+    </ul>
+
+    <h3>Estados y decisiones canonicas</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Valores</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Estado de escena</td>
+          <td><code>backlog</code>, <code>planned</code>, <code>drafted</code>, <code>reviewing</code>, <code>approved</code></td>
+        </tr>
+        <tr>
+          <td>Tipo de auditoria</td>
+          <td><code>technical</code>, <code>literary</code>, <code>adversarial</code></td>
+        </tr>
+        <tr>
+          <td>Decision de auditoria</td>
+          <td><code>pass</code>, <code>pass_with_notes</code>, <code>needs_revision</code>, <code>blocked</code></td>
+        </tr>
+        <tr>
+          <td>Decision del necessity test</td>
+          <td><code>keep</code>, <code>rework</code>, <code>cut</code></td>
+        </tr>
+        <tr>
+          <td>Decision humana</td>
+          <td><code>approve</code>, <code>request_changes</code>, <code>reject</code></td>
+        </tr>
+        <tr>
+          <td>Estado de memoria</td>
+          <td><code>candidate</code>, <code>confirmed</code>, <code>retired</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Flujo real de uso</h2>
+    <p>El flujo correcto del MVP es este:</p>
+    <ol>
+      <li>Crear proyecto editorial.</li>
+      <li>Crear escena.</li>
+      <li>Ejecutar <code>scene planning</code>.</li>
+      <li>Leer el plan y el Scene Necessity Test.</li>
+      <li>Si la escena sigue viva, ejecutar <code>scene writing</code>.</li>
+      <li>Ejecutar las tres auditorias: tecnica, literaria y adversarial.</li>
+      <li>Resolver revisiones humanas pendientes si alguna auditoria lo exige.</li>
+      <li>Registrar aprobacion humana de la escena.</li>
+      <li>Confirmar o retirar memorias factuales y dramaticas.</li>
+      <li>Revisar el timeline de pipelines y exportar si hace falta.</li>
+    </ol>
+
+    <h3>Reglas de bloqueo del workflow</h3>
+    <p>La IA tutora debe respetar estas reglas exactas:</p>
+    <ul>
+      <li>No se puede escribir ni auditar una escena si antes no fue planificada.</li>
+      <li>Si el Scene Necessity Test devuelve <code>rework</code>, hay que rehacer el brief y volver a planificar.</li>
+      <li>Si devuelve <code>cut</code>, no se debe seguir como si la escena estuviera viva.</li>
+      <li>No se pueden auditar escenas sin draft.</li>
+      <li>La escena no se aprueba si falta alguna de las tres auditorias.</li>
+      <li>La escena no se aprueba si alguna auditoria devuelve <code>needs_revision</code> o <code>blocked</code>.</li>
+      <li>La escena no se aprueba si una auditoria exige revision humana y esa revision no fue registrada.</li>
+      <li>Una aprobacion humana negativa de escena o de auditoria genera blockers.</li>
+    </ul>
+
+    <h3>Que produce cada pipeline</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Pipeline</th>
+          <th>Entrada</th>
+          <th>Salida</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>scene_planning</code></td>
+          <td>Proyecto + escena</td>
+          <td>Plan de escena, necessity test, actualizaciones de memoria, preguntas de revision humana</td>
+        </tr>
+        <tr>
+          <td><code>scene_writing</code></td>
+          <td>Proyecto + escena + plan</td>
+          <td>Draft en Markdown, intencion del escritor, notas de continuidad, preguntas abiertas</td>
+        </tr>
+        <tr>
+          <td><code>technical_audit</code></td>
+          <td>Proyecto + escena + draft</td>
+          <td>Chequeo de causalidad, continuidad, logica y estructura</td>
+        </tr>
+        <tr>
+          <td><code>literary_audit</code></td>
+          <td>Proyecto + escena + draft</td>
+          <td>Chequeo de voz, tono, ritmo, subtexto, prosa</td>
+        </tr>
+        <tr>
+          <td><code>adversarial_audit</code></td>
+          <td>Proyecto + escena + draft</td>
+          <td>Red team editorial: objeciones, debilidades y riesgos del texto</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. Scene Necessity Test</h2>
+    <p>Toda escena planificada registra una necesidad estructural. La IA tutora debe saber que este test es obligatorio y central.</p>
+    <p>El sistema exige estas preguntas base:</p>
+    <ul>
+      <li>Que cambia realmente.</li>
+      <li>Que se rompe si la escena desaparece.</li>
+      <li>Como contribuye al conflicto.</li>
+      <li>Cual es el desplazamiento dramatico.</li>
+      <li>Decision editorial final: keep, rework o cut.</li>
+    </ul>
+
+    <div class="box">
+      <p><strong>Regla de tutor.</strong> Si el usuario pregunta que hacer despues de planificar, la IA debe mirar primero la decision del necessity test. Si no es <code>keep</code>, no debe empujar automaticamente a redactar.</p>
+    </div>
+
+    <h2>5. Mapa de la interfaz web</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Panel UI</th>
+          <th>Que muestra</th>
+          <th>Como debe explicarlo la IA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Proyectos</td>
+          <td>Formulario de alta + lista de proyectos</td>
+          <td>La entrada al sistema. Cada proyecto define el briefing editorial global.</td>
+        </tr>
+        <tr>
+          <td>Proyecto activo</td>
+          <td>Premisa, style DNA, editorial judgment, anti-patterns</td>
+          <td>La carta editorial del libro. Condiciona todas las escenas.</td>
+        </tr>
+        <tr>
+          <td>Export</td>
+          <td>JSON y Markdown</td>
+          <td>JSON sirve para round-trip estructurado; Markdown para lectura humana.</td>
+        </tr>
+        <tr>
+          <td>LLM orchestration</td>
+          <td>Routing, providers, coste estimado, runs observados</td>
+          <td>Panel tecnico-informativo. No es el lugar donde se trabaja el contenido.</td>
+        </tr>
+        <tr>
+          <td>Memory ledger</td>
+          <td>Memoria factual y dramatica</td>
+          <td>Canon emergente del proyecto. El usuario confirma o retira entradas.</td>
+        </tr>
+        <tr>
+          <td>Pipeline timeline</td>
+          <td>Historial de runs</td>
+          <td>Bitacora de ejecucion. Sirve para trazar que paso y con que modelo.</td>
+        </tr>
+        <tr>
+          <td>Escenas</td>
+          <td>Formulario de alta + tarjetas de workflow</td>
+          <td>La mesa principal de trabajo.</td>
+        </tr>
+        <tr>
+          <td>Workflow</td>
+          <td>Next recommended action, blockers, auditorias, aprobacion</td>
+          <td>La sintesis operacional de esa escena.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>6. Como usar el sistema paso a paso</h2>
+    <h3>Paso 1. Crear un proyecto</h3>
+    <p>El usuario crea un proyecto con identidad editorial. Los campos minimos visibles son titulo, premisa, genero y audiencia.</p>
+    <p>Internamente, el sistema tambien puede almacenar:</p>
+    <ul>
+      <li><code>theme</code></li>
+      <li><code>narrative_pov</code></li>
+      <li><code>tense</code></li>
+      <li><code>target_length_words</code></li>
+      <li><code>style_dna</code></li>
+      <li><code>editorial_judgment</code></li>
+      <li><code>anti_patterns</code></li>
+    </ul>
+
+    <h3>Paso 2. Crear una escena</h3>
+    <p>La escena se crea con:</p>
+    <ul>
+      <li><code>title</code></li>
+      <li><code>purpose</code></li>
+      <li><code>brief</code></li>
+      <li><code>pov_character</code></li>
+      <li><code>location</code></li>
+    </ul>
+    <p>La IA tutora debe insistir en que <code>purpose</code> y <code>brief</code> sean concretos, porque de eso depende la planificacion.</p>
+
+    <h3>Paso 3. Planificar</h3>
+    <p>Al pulsar <em>Planificar</em>, el sistema:</p>
+    <ul>
+      <li>crea un plan estructurado de la escena,</li>
+      <li>genera el Scene Necessity Test,</li>
+      <li>propone memorias factuales y dramaticas candidatas,</li>
+      <li>registra un pipeline run.</li>
+    </ul>
+
+    <h3>Paso 4. Redactar</h3>
+    <p>Solo debe hacerse si la escena supero el necessity test. El sistema genera el draft en Markdown y marca la escena como <code>drafted</code>.</p>
+
+    <h3>Paso 5. Auditar</h3>
+    <p>Las auditorias no son opcionales en el flujo ideal del MVP. Deben correrse las tres:</p>
+    <ol>
+      <li>Tecnica</li>
+      <li>Literaria</li>
+      <li>Adversarial</li>
+    </ol>
+
+    <h3>Paso 6. Resolver revision humana cuando haga falta</h3>
+    <p>
+      Una auditoria puede devolver <code>human_review_required = true</code>. En ese caso, el usuario debe registrar una aprobacion humana
+      para esa auditoria antes de poder aprobar la escena.
+    </p>
+
+    <h3>Paso 7. Aprobar la escena</h3>
+    <p>La escena solo debe aprobarse cuando el workflow indique que ya puede aprobarse. Aprobar antes produce conflicto de workflow.</p>
+
+    <h3>Paso 8. Confirmar memorias</h3>
+    <p>El usuario revisa memorias candidatas y decide si quedan <code>confirmed</code> o <code>retired</code>.</p>
+
+    <h3>Paso 9. Exportar o seguir iterando</h3>
+    <p>El sistema permite exportar el proyecto en JSON o Markdown, y reimportarlo desde JSON.</p>
+
+    <h2>7. LLMs y routing</h2>
+    <p>NovelEngine no trata al LLM como un bloque unico. Usa un router por tarea.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Tarea</th>
+          <th>Provider/model recomendado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Scene planning</td>
+          <td><code>openai:gpt-5.4-mini</code></td>
+        </tr>
+        <tr>
+          <td>Scene writing</td>
+          <td><code>anthropic:claude-sonnet-4-6</code></td>
+        </tr>
+        <tr>
+          <td>Technical audit</td>
+          <td><code>openai:gpt-5.4</code></td>
+        </tr>
+        <tr>
+          <td>Literary audit</td>
+          <td><code>anthropic:claude-opus-4-7</code></td>
+        </tr>
+        <tr>
+          <td>Adversarial audit</td>
+          <td><code>openai:gpt-5.4</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      Si faltan credenciales, el backend puede caer a <code>mock</code> si el fallback esta habilitado.
+      El estado real del router se consulta en <code>GET /api/v1/health/llm</code>.
+    </p>
+
+    <h2>8. Endpoints utiles que la IA debe conocer</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Endpoint</th>
+          <th>Uso</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>GET /api/v1/health</code></td>
+          <td>Salud basica del backend</td>
+        </tr>
+        <tr>
+          <td><code>GET /api/v1/health/llm</code></td>
+          <td>Estado de routing y credenciales</td>
+        </tr>
+        <tr>
+          <td><code>GET /api/v1/projects</code></td>
+          <td>Listar proyectos</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/projects</code></td>
+          <td>Crear proyecto</td>
+        </tr>
+        <tr>
+          <td><code>GET /api/v1/projects/{id}</code></td>
+          <td>Detalle completo del proyecto</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/projects/{id}/scenes</code></td>
+          <td>Crear escena</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/scenes/{id}/plan</code></td>
+          <td>Planificar escena</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/scenes/{id}/write</code></td>
+          <td>Redactar escena</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/scenes/{id}/audits/{type}</code></td>
+          <td>Correr auditoria tecnica, literaria o adversarial</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/approvals/scenes/{id}</code></td>
+          <td>Registrar aprobacion humana de escena</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/approvals/audits/{id}</code></td>
+          <td>Registrar aprobacion humana de auditoria</td>
+        </tr>
+        <tr>
+          <td><code>PATCH /api/v1/projects/{project_id}/memories/{memory_id}</code></td>
+          <td>Confirmar o retirar memoria</td>
+        </tr>
+        <tr>
+          <td><code>GET /api/v1/projects/{id}/pipeline-runs</code></td>
+          <td>Ver timeline de ejecucion del proyecto</td>
+        </tr>
+        <tr>
+          <td><code>GET /api/v1/projects/{id}/export/json</code></td>
+          <td>Export estructurado</td>
+        </tr>
+        <tr>
+          <td><code>GET /api/v1/projects/{id}/export/markdown</code></td>
+          <td>Export legible</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/projects/import</code></td>
+          <td>Reimportar proyecto exportado</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>9. Protocolo que debe seguir la IA tutora</h2>
+    <h3>9.1 Regla base</h3>
+    <p>La IA no debe hablar de NovelEngine como si fuera una caja negra magica. Debe explicar siempre:</p>
+    <ul>
+      <li>en que parte del workflow esta el usuario,</li>
+      <li>que paso siguiente corresponde,</li>
+      <li>que bloqueos existen,</li>
+      <li>que panel o boton debe usar el usuario,</li>
+      <li>que resultado deberia esperar del sistema.</li>
+    </ul>
+
+    <h3>9.2 Como responder preguntas comunes</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Si el usuario pregunta...</th>
+          <th>La IA debe responder...</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>"Que hago ahora?"</td>
+          <td>Revisando el workflow de la escena: next recommended action, blockers y auditorias faltantes.</td>
+        </tr>
+        <tr>
+          <td>"Por que no me deja aprobar?"</td>
+          <td>Explicando que la aprobacion depende de necessity keep, draft existente, tres auditorias, cero blockers y cero revisiones humanas pendientes.</td>
+        </tr>
+        <tr>
+          <td>"Para que sirve memoria factual y dramatica?"</td>
+          <td>Como canon del proyecto: hechos reutilizables y tensiones/presiones narrativas reutilizables.</td>
+        </tr>
+        <tr>
+          <td>"Que diferencia hay entre auditoria tecnica y literaria?"</td>
+          <td>Tecnica = continuidad, causalidad, estructura. Literaria = voz, tono, ritmo, subtexto.</td>
+        </tr>
+        <tr>
+          <td>"Que significa Scene Necessity Test?"</td>
+          <td>Que la escena debe justificar su existencia estructural. Si no cambia nada importante, no deberia seguir adelante.</td>
+        </tr>
+        <tr>
+          <td>"Puedo usarlo para otra cosa que no sea novela?"</td>
+          <td>Si, reinterpretando escena como unidad minima de trabajo: seccion, bloque, carta, capitulo corto, modulo de argumento, etc.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>9.3 Comportamientos que la IA debe evitar</h3>
+    <ul>
+      <li>No decir que una escena esta "bien" solo porque genero texto.</li>
+      <li>No colapsar las tres auditorias en una sola nota global.</li>
+      <li>No saltar directo a aprobar si el workflow aun marca blockers.</li>
+      <li>No recomendar reescrituras totales de capitulos como comportamiento por defecto del sistema.</li>
+      <li>No asumir que el usuario quiere una novela si el contenido real pertenece a otro genero.</li>
+    </ul>
+
+    <h2>10. Como reinterpretar NovelEngine fuera de la novela</h2>
+    <p>El sistema fue concebido para novelas, pero puede adaptarse a otros generos si la IA explica el mapeo correcto.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Genero real</th>
+          <th>Como reinterpretar "scene"</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ensayo filosofico divulgativo</td>
+          <td>Bloque argumental, carta, seccion, modulo tematico</td>
+        </tr>
+        <tr>
+          <td>No ficcion narrativa</td>
+          <td>Escena real, episodio, episodio explicado, seccion con anecdotas</td>
+        </tr>
+        <tr>
+          <td>Manual o libro practico</td>
+          <td>Leccion, modulo, caso, paso operativo</td>
+        </tr>
+        <tr>
+          <td>Libro de memorias</td>
+          <td>Escena autobiografica, episodio, nucleo emocional</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      La IA tutora debe explicar que el sistema sigue siendo util si el usuario mantiene la disciplina del workflow:
+      unidad pequena de trabajo, planificacion, redaccion, auditorias, aprobacion y memoria.
+    </p>
+
+    <h2>11. Troubleshooting funcional</h2>
+    <ul>
+      <li>Si el frontend carga pero una accion falla: revisar routing/proxy del frontend y estado del backend.</li>
+      <li>Si <code>/health</code> responde pero <code>/health/llm</code> marca providers sin key: el sistema puede funcionar con fallback mock si esta activo.</li>
+      <li>Si no se puede aprobar una escena: revisar blockers del workflow, auditorias faltantes y revisiones humanas pendientes.</li>
+      <li>Si el texto generado parece debil: revisar <code>purpose</code>, <code>brief</code>, <code>style_dna</code> y <code>editorial_judgment</code> antes de culpar solo al modelo.</li>
+      <li>Si una memoria no debe pasar a canon: marcarla como <code>retired</code>, no confirmarla por inercia.</li>
+    </ul>
+
+    <h2>12. Resumen ejecutivo para la IA</h2>
+    <div class="box">
+      <p><strong>NovelEngine es una mesa editorial scene-first.</strong> El proyecto define la carta editorial global. Cada escena pasa por planificacion, necessity test, redaccion, auditorias separadas, revision humana y memoria. El workflow no se inventa: se deriva de estados, auditorias y approvals. La IA tutora debe ayudar al usuario a entender que boton usar, que resultado esperar y que blocker resolver, no a tratar el sistema como si fuera un chat generativo sin estructura.</p>
+    </div>
+
+    <p class="small">
+      Base factual de este documento: README, docs del repositorio, esquemas Pydantic, servicios de pipeline y workflow, rutas FastAPI, componentes del frontend y tests de flujo del proyecto.
+    </p>
+  </main>
+</body>
+</html>

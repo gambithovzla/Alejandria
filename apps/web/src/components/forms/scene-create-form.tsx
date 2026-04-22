@@ -3,7 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { startTransition, useState } from 'react'
 
+import type { StructureMode } from '@novel-engine/contracts'
+
 import { createScene } from '@/lib/api'
+import { getProjectStructureCopy } from '@/lib/project-structure'
 
 const initialState = {
   title: '',
@@ -13,11 +16,12 @@ const initialState = {
   location: '',
 }
 
-export function SceneCreateForm({ projectId }: { projectId: string }) {
+export function SceneCreateForm({ projectId, structureMode }: { projectId: string; structureMode: StructureMode }) {
   const router = useRouter()
   const [form, setForm] = useState(initialState)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const copy = getProjectStructureCopy(structureMode)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -31,7 +35,7 @@ export function SceneCreateForm({ projectId }: { projectId: string }) {
         router.refresh()
       })
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'No se pudo crear la escena.')
+      setError(submissionError instanceof Error ? submissionError.message : `No se pudo crear la ${copy.singular}.`)
     } finally {
       setIsSubmitting(false)
     }
@@ -41,44 +45,44 @@ export function SceneCreateForm({ projectId }: { projectId: string }) {
     <form className="grid gap-3" onSubmit={handleSubmit}>
       <div className="grid gap-3 md:grid-cols-2">
         <input
-          aria-label="Titulo de escena"
+          aria-label={copy.titleLabel}
           className="field"
-          placeholder="Titulo de escena"
+          placeholder={copy.titlePlaceholder}
           value={form.title}
           onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
           required
         />
         <input
-          aria-label="Personaje POV"
+          aria-label={copy.focusLabel}
           className="field"
-          placeholder="POV"
+          placeholder={copy.focusPlaceholder}
           value={form.povCharacter}
           onChange={(event) => setForm((current) => ({ ...current, povCharacter: event.target.value }))}
         />
       </div>
 
       <input
-        aria-label="Proposito editorial"
+        aria-label={copy.purposeLabel}
         className="field"
-        placeholder="Proposito editorial de la escena"
+        placeholder={copy.purposePlaceholder}
         value={form.purpose}
         onChange={(event) => setForm((current) => ({ ...current, purpose: event.target.value }))}
         required
       />
 
       <textarea
-        aria-label="Brief de la escena"
+        aria-label={copy.briefLabel}
         className="field min-h-24"
-        placeholder="Brief de la escena"
+        placeholder={copy.briefPlaceholder}
         value={form.brief}
         onChange={(event) => setForm((current) => ({ ...current, brief: event.target.value }))}
         required
       />
 
       <input
-        aria-label="Localizacion"
+        aria-label={copy.locationLabel}
         className="field"
-        placeholder="Localizacion"
+        placeholder={copy.locationPlaceholder}
         value={form.location}
         onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}
       />
@@ -87,7 +91,7 @@ export function SceneCreateForm({ projectId }: { projectId: string }) {
 
       <div className="flex justify-end">
         <button className="action-button" disabled={isSubmitting} type="submit">
-          {isSubmitting ? 'Guardando...' : 'Agregar escena'}
+          {isSubmitting ? 'Guardando...' : copy.creationButton}
         </button>
       </div>
     </form>

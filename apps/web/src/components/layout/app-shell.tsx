@@ -8,10 +8,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <p className="text-xs uppercase tracking-[0.36em] text-brass">NovelEngine / Editorial studio</p>
               <div className="space-y-2">
                 <h1 className="font-[family-name:var(--font-display)] text-5xl leading-none text-ink md:text-6xl">
-                  Planificar, escribir y auditar novelas largas con memoria estructurada.
+                  Planificar, escribir y auditar libros largos con memoria estructurada.
                 </h1>
                 <p className="max-w-3xl text-sm text-ink/74 md:text-base">
-                  El MVP separa calidad tecnica de calidad literaria, obliga Scene Necessity Test por escena y deja toda
+                  El MVP separa calidad tecnica de calidad literaria, obliga una prueba de necesidad por unidad y deja toda
                   aprobacion en manos humanas.
                 </p>
               </div>

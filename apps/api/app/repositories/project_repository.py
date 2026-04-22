@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.project import Project
 from app.models.scene import Scene
-from app.schemas.project import ProjectCreate
+from app.schemas.project import ProjectCreate, ProjectUpdate
 from app.repositories.scene_repository import SceneRepository
 
 
@@ -53,6 +53,8 @@ class ProjectRepository:
         project = Project(
             title=payload.title,
             premise=payload.premise,
+            work_type=payload.work_type,
+            structure_mode=payload.structure_mode,
             genre=payload.genre,
             audience=payload.audience,
             theme=payload.theme,
@@ -67,4 +69,22 @@ class ProjectRepository:
         self.db.add(project)
         self.db.flush()
         setattr(project, "scene_count", 0)
+        return project
+
+    def update(self, project: Project, payload: ProjectUpdate) -> Project:
+        project.title = payload.title
+        project.premise = payload.premise
+        project.work_type = payload.work_type
+        project.structure_mode = payload.structure_mode
+        project.genre = payload.genre
+        project.audience = payload.audience
+        project.theme = payload.theme
+        project.narrative_pov = payload.narrative_pov
+        project.tense = payload.tense
+        project.target_length_words = payload.target_length_words
+        project.style_dna = payload.style_dna.model_dump(mode="json")
+        project.editorial_judgment = payload.editorial_judgment.model_dump(mode="json")
+        project.anti_patterns = [item.model_dump(mode="json") for item in payload.anti_patterns]
+        self.db.add(project)
+        self.db.flush()
         return project

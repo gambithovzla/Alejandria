@@ -4,6 +4,8 @@ def _create_project(client):
         json={
             "title": "La ciudad invertida",
             "premise": "Una restauradora descubre que la novela que traduce esta corrigiendo su memoria.",
+            "workType": "novel",
+            "structureMode": "scene",
             "genre": "Literary suspense",
             "audience": "Adult crossover",
             "theme": "Identidad y archivo",
@@ -18,6 +20,8 @@ def _create_project(client):
 
 def test_create_project_and_scene_pipeline_flow(client):
     project = _create_project(client)
+    assert project["workType"] == "novel"
+    assert project["structureMode"] == "scene"
 
     scene_response = client.post(
         f"/api/v1/projects/{project['id']}/scenes",
@@ -97,3 +101,53 @@ def test_create_project_and_scene_pipeline_flow(client):
     assert pipeline_runs.status_code == 200
     assert len(pipeline_runs.json()) >= 5
     assert pipeline_runs.json()[0]["inputPayload"]["llm"]["provider"] == "mock"
+
+
+def test_update_project_editorial_profile(client):
+    project = _create_project(client)
+
+    response = client.patch(
+        f"/api/v1/projects/{project['id']}",
+        json={
+            "title": "Contra el humo",
+            "premise": "Un ensayo filosófico sobre claridad, autoridad y autoengaño publico.",
+            "workType": "essay",
+            "structureMode": "section",
+            "genre": "Ensayo filosofico divulgativo",
+            "audience": "Lectores de no ficcion",
+            "theme": "Claridad intelectual",
+            "narrativePov": "Primera persona ensayistica",
+            "tense": "Presente",
+            "targetLengthWords": 58000,
+            "styleDna": {
+                "voiceReference": "Prosa sobria, incisiva y sin grandilocuencia.",
+                "sentenceProfile": "Frases medianas con cierres cortantes cuando el argumento gana presion.",
+                "dialogueProfile": "Si aparece dialogo o cita, que concentre friccion intelectual.",
+                "sensoryProfile": "Detalle concreto solo cuando ayuda a pensar mejor.",
+                "forbiddenMoves": ["abstractismo hueco", "sentencia inflada"],
+            },
+            "editorialJudgment": {
+                "northStar": "Cada seccion debe afinar la tesis o complicarla de forma productiva.",
+                "commercialIntent": "Ensayo legible para publico amplio sin perder rigor.",
+                "priorities": ["claridad", "rigor", "progresion"],
+                "nonNegotiables": ["sin humo retorico", "sin repeticion de tesis"],
+                "riskTolerance": "medium",
+            },
+            "antiPatterns": [
+                {
+                    "label": "Tesis inflada",
+                    "description": "El texto afirma mas de lo que puede sostener.",
+                    "warningSigns": ["afirmacion absoluta", "poca evidencia"],
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["title"] == "Contra el humo"
+    assert payload["workType"] == "essay"
+    assert payload["structureMode"] == "section"
+    assert payload["styleDna"]["voiceReference"] == "Prosa sobria, incisiva y sin grandilocuencia."
+    assert payload["editorialJudgment"]["northStar"] == "Cada seccion debe afinar la tesis o complicarla de forma productiva."
+    assert payload["antiPatterns"][0]["label"] == "Tesis inflada"

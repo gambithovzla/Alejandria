@@ -17,7 +17,7 @@ class SceneRepository:
     def get_detail(self, scene_id: str) -> Scene | None:
         stmt = (
             select(Scene)
-            .options(selectinload(Scene.audits))
+            .options(selectinload(Scene.audits), selectinload(Scene.project))
             .where(Scene.id == scene_id)
         )
         scene = self.db.scalar(stmt)

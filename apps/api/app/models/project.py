@@ -11,6 +11,8 @@ class Project(IdMixin, TimestampMixin, Base):
 
     title: Mapped[str] = mapped_column(String(255))
     premise: Mapped[str] = mapped_column(Text)
+    work_type: Mapped[str] = mapped_column(String(60), default="novel")
+    structure_mode: Mapped[str] = mapped_column(String(60), default="scene")
     genre: Mapped[str] = mapped_column(String(120))
     audience: Mapped[str] = mapped_column(String(120))
     theme: Mapped[str | None] = mapped_column(String(255), nullable=True)

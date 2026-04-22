@@ -3,6 +3,8 @@ export type AuditDecision = 'pass' | 'pass_with_notes' | 'needs_revision' | 'blo
 export type ApprovalDecision = 'approve' | 'request_changes' | 'reject'
 export type MemoryKind = 'factual' | 'dramatic'
 export type MemoryStatus = 'candidate' | 'confirmed' | 'retired'
+export type WorkType = 'novel' | 'essay' | 'narrative_nonfiction' | 'biography' | 'memoir' | 'practical' | 'hybrid'
+export type StructureMode = 'scene' | 'section' | 'episode' | 'module'
 export type PipelineType =
   | 'scene_planning'
   | 'scene_writing'
@@ -201,6 +203,8 @@ export interface ProjectSummary {
   id: string
   title: string
   premise: string
+  workType: WorkType
+  structureMode: StructureMode
   genre: string
   audience: string
   status: string

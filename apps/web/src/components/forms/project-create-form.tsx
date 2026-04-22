@@ -3,11 +3,25 @@
 import { useRouter } from 'next/navigation'
 import { startTransition, useState } from 'react'
 
-import { createProject } from '@/lib/api'
+import type { StructureMode, WorkType } from '@novel-engine/contracts'
 
-const initialState = {
+import { createProject } from '@/lib/api'
+import { getRecommendedStructureMode, STRUCTURE_MODE_OPTIONS, WORK_TYPE_OPTIONS } from '@/lib/project-structure'
+
+type ProjectCreateState = {
+  title: string
+  premise: string
+  workType: WorkType
+  structureMode: StructureMode
+  genre: string
+  audience: string
+}
+
+const initialState: ProjectCreateState = {
   title: '',
   premise: '',
+  workType: 'novel',
+  structureMode: 'scene',
   genre: '',
   audience: '',
 }
@@ -48,6 +62,30 @@ export function ProjectCreateForm() {
           onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
           required
         />
+        <select
+          aria-label="Tipo de libro"
+          className="field"
+          value={form.workType}
+          onChange={(event) => {
+            const workType = event.target.value as typeof form.workType
+            setForm((current) => ({
+              ...current,
+              workType,
+              structureMode: current.structureMode === getRecommendedStructureMode(current.workType)
+                ? getRecommendedStructureMode(workType)
+                : current.structureMode,
+            }))
+          }}
+        >
+          {WORK_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
         <input
           aria-label="Genero literario"
           className="field"
@@ -56,6 +94,20 @@ export function ProjectCreateForm() {
           onChange={(event) => setForm((current) => ({ ...current, genre: event.target.value }))}
           required
         />
+        <select
+          aria-label="Modo estructural"
+          className="field"
+          value={form.structureMode}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, structureMode: event.target.value as typeof current.structureMode }))
+          }
+        >
+          {STRUCTURE_MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid gap-3 md:grid-cols-[1.4fr_0.6fr]">
