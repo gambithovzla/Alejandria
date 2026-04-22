@@ -12,10 +12,15 @@ import type {
   SceneSummary,
 } from '@novel-engine/contracts'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1'
+const SERVER_API_BASE_URL = process.env.NOVEL_ENGINE_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1'
+const BROWSER_API_BASE_URL = '/api/novel-engine'
+
+function resolveApiBaseUrl() {
+  return typeof window === 'undefined' ? SERVER_API_BASE_URL : BROWSER_API_BASE_URL
+}
 
 function buildUrl(path: string) {
-  return `${API_BASE_URL}${path}`
+  return `${resolveApiBaseUrl()}${path}`
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
