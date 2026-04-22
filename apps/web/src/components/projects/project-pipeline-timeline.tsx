@@ -36,12 +36,35 @@ export function ProjectPipelineTimeline({ runs, scenes }: ProjectPipelineTimelin
                 <p className="mt-1 text-sm text-ink/68">
                   {run.sceneId ? sceneMap.get(run.sceneId) ?? run.sceneId : 'Nivel proyecto'}
                 </p>
+                {run.llm ? (
+                  <p className="mt-2 text-sm text-ink/62">
+                    {run.llm.provider}:{run.llm.model}
+                    {run.llm.fallbackUsed ? ' -> mock fallback' : ''}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-ink/62">
                 <span className="rounded-full border border-ink/10 px-2 py-1">{run.status}</span>
                 <span className="rounded-full border border-ink/10 px-2 py-1">{formatRunDate(run.createdAt)}</span>
               </div>
             </div>
+            {run.llm?.usage ? (
+              <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-ink/58">
+                {run.llm.usage.inputTokens !== null ? (
+                  <span className="rounded-full border border-ink/10 px-2 py-1">
+                    in {formatCompactInteger(run.llm.usage.inputTokens)}
+                  </span>
+                ) : null}
+                {run.llm.usage.outputTokens !== null ? (
+                  <span className="rounded-full border border-ink/10 px-2 py-1">
+                    out {formatCompactInteger(run.llm.usage.outputTokens)}
+                  </span>
+                ) : null}
+                {run.llm.usage.estimatedCostUsd !== null ? (
+                  <span className="rounded-full border border-ink/10 px-2 py-1">{formatUsd(run.llm.usage.estimatedCostUsd)}</span>
+                ) : null}
+              </div>
+            ) : null}
             {run.errorMessage ? <p className="mt-3 text-sm text-red-800">{run.errorMessage}</p> : null}
           </article>
         ))}
@@ -55,4 +78,17 @@ function formatRunDate(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function formatCompactInteger(value: number) {
+  return new Intl.NumberFormat('es-PE', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+}
+
+function formatUsd(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: value > 0 && value < 0.01 ? 4 : 2,
+    maximumFractionDigits: value > 0 && value < 0.01 ? 4 : 2,
+  }).format(value)
 }

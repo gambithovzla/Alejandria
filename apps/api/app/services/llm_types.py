@@ -33,12 +33,30 @@ class ProviderSelection:
 
 
 @dataclass(slots=True, frozen=True)
+class LLMUsageSummary:
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    cached_input_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    estimated_cost_usd: float | None = None
+    currency: str = "USD"
+
+
+@dataclass(slots=True, frozen=True)
+class ProviderStructuredResponse:
+    output: dict[str, Any]
+    usage: LLMUsageSummary | None = None
+
+
+@dataclass(slots=True, frozen=True)
 class RawLLMGenerationResult:
     output: dict[str, Any]
     requested_provider: str
     requested_model: str
     provider: str
     model: str
+    usage: LLMUsageSummary | None = None
     fallback_used: bool = False
     fallback_reason: str | None = None
 
@@ -50,6 +68,7 @@ class StructuredGenerationResult(Generic[SchemaT]):
     requested_model: str
     provider: str
     model: str
+    usage: LLMUsageSummary | None = None
     fallback_used: bool = False
     fallback_reason: str | None = None
 
@@ -65,7 +84,7 @@ class StructuredLLMProvider(Protocol):
         prompt: PromptPackage,
         payload: dict[str, Any],
         model: str,
-    ) -> dict[str, Any]:
+    ) -> ProviderStructuredResponse:
         ...
 
 

@@ -165,11 +165,23 @@ class PipelineService:
 
     @staticmethod
     def _llm_metadata(result) -> dict[str, str | bool | None]:
+        usage = None
+        if result.usage is not None:
+            usage = {
+                "input_tokens": result.usage.input_tokens,
+                "output_tokens": result.usage.output_tokens,
+                "total_tokens": result.usage.total_tokens,
+                "cached_input_tokens": result.usage.cached_input_tokens,
+                "cache_write_tokens": result.usage.cache_write_tokens,
+                "estimated_cost_usd": result.usage.estimated_cost_usd,
+                "currency": result.usage.currency,
+            }
         return {
             "requested_provider": result.requested_provider,
             "requested_model": result.requested_model,
             "provider": result.provider,
             "model": result.model,
+            "usage": usage,
             "fallback_used": result.fallback_used,
             "fallback_reason": result.fallback_reason,
         }

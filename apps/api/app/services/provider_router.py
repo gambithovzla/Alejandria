@@ -55,7 +55,7 @@ class LLMProviderRouter:
             )
 
         try:
-            output = provider.generate_structured(
+            response = provider.generate_structured(
                 schema=schema,
                 prompt_name=prompt_name,
                 prompt=prompt,
@@ -72,11 +72,12 @@ class LLMProviderRouter:
             )
 
         return RawLLMGenerationResult(
-            output=output,
+            output=response.output,
             requested_provider=selection.provider,
             requested_model=selection.model,
             provider=selection.provider,
             model=selection.model,
+            usage=response.usage,
         )
 
     def describe_routing(self) -> dict[str, dict[str, str]]:
@@ -112,7 +113,7 @@ class LLMProviderRouter:
             raise LLMProviderError(reason)
 
         mock_provider = self.providers["mock"]
-        output = mock_provider.generate_structured(
+        response = mock_provider.generate_structured(
             schema=schema,
             prompt_name=prompt_name,
             prompt=build_prompt_package(prompt_name, payload),
@@ -120,11 +121,12 @@ class LLMProviderRouter:
             model=self.settings.mock_llm_model,
         )
         return RawLLMGenerationResult(
-            output=output,
+            output=response.output,
             requested_provider=selection.provider,
             requested_model=selection.model,
             provider="mock",
             model=self.settings.mock_llm_model,
+            usage=response.usage,
             fallback_used=True,
             fallback_reason=reason,
         )

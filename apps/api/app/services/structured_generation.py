@@ -23,6 +23,7 @@ class StructuredGenerationService:
             requested_model=result.requested_model,
             provider=result.provider,
             model=result.model,
+            usage=result.usage,
             fallback_used=result.fallback_used,
             fallback_reason=result.fallback_reason,
         )

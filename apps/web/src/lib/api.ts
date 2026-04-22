@@ -3,6 +3,7 @@ import type {
   ApprovalRecord,
   AuditReport,
   AuditType,
+  LLMHealthStatus,
   MemoryStatus,
   MemoryItem,
   PipelineRunSummary,
@@ -87,6 +88,7 @@ function mapMemory(item: any): MemoryItem {
 }
 
 function mapPipelineRun(item: any): PipelineRunSummary {
+  const llm = item.inputPayload?.llm
   return {
     id: item.id,
     projectId: item.projectId,
@@ -98,6 +100,27 @@ function mapPipelineRun(item: any): PipelineRunSummary {
     errorMessage: item.errorMessage,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
+    llm: llm
+      ? {
+          requestedProvider: llm.requested_provider ?? llm.requestedProvider ?? 'unknown',
+          requestedModel: llm.requested_model ?? llm.requestedModel ?? 'unknown',
+          provider: llm.provider ?? 'unknown',
+          model: llm.model ?? 'unknown',
+          usage: llm.usage
+            ? {
+                inputTokens: llm.usage.input_tokens ?? llm.usage.inputTokens ?? null,
+                outputTokens: llm.usage.output_tokens ?? llm.usage.outputTokens ?? null,
+                totalTokens: llm.usage.total_tokens ?? llm.usage.totalTokens ?? null,
+                cachedInputTokens: llm.usage.cached_input_tokens ?? llm.usage.cachedInputTokens ?? null,
+                cacheWriteTokens: llm.usage.cache_write_tokens ?? llm.usage.cacheWriteTokens ?? null,
+                estimatedCostUsd: llm.usage.estimated_cost_usd ?? llm.usage.estimatedCostUsd ?? null,
+                currency: llm.usage.currency ?? 'USD',
+              }
+            : null,
+          fallbackUsed: Boolean(llm.fallback_used ?? llm.fallbackUsed),
+          fallbackReason: llm.fallback_reason ?? llm.fallbackReason ?? null,
+        }
+      : null,
   }
 }
 
@@ -239,6 +262,10 @@ async function createApproval(
 export async function fetchProjectPipelineRuns(projectId: string): Promise<PipelineRunSummary[]> {
   const payload = await request<any[]>(`/projects/${projectId}/pipeline-runs`)
   return payload.map(mapPipelineRun)
+}
+
+export async function fetchLLMHealthStatus(): Promise<LLMHealthStatus> {
+  return request<LLMHealthStatus>('/health/llm')
 }
 
 export async function updateMemory(

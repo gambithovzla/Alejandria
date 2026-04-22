@@ -96,3 +96,4 @@ def test_create_project_and_scene_pipeline_flow(client):
     pipeline_runs = client.get(f"/api/v1/projects/{project['id']}/pipeline-runs")
     assert pipeline_runs.status_code == 200
     assert len(pipeline_runs.json()) >= 5
+    assert pipeline_runs.json()[0]["inputPayload"]["llm"]["provider"] == "mock"

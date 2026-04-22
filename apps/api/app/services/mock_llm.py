@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.domain.enums import AuditDecision, NecessityDecision
+from app.services.llm_types import ProviderStructuredResponse
 
 
 class MockLLMProvider:
@@ -20,8 +21,8 @@ class MockLLMProvider:
         prompt,
         payload: dict[str, Any],
         model: str,
-    ) -> dict[str, Any]:
-        return self.generate(prompt_name, payload)
+    ) -> ProviderStructuredResponse:
+        return ProviderStructuredResponse(output=self.generate(prompt_name, payload))
 
     def generate(self, prompt_name: str, payload: dict[str, Any]) -> dict[str, Any]:
         scene = payload["scene"]

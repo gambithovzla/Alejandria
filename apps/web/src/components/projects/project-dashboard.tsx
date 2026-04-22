@@ -8,6 +8,7 @@ import type {
   ApprovalDecision,
   AuditReport,
   AuditType,
+  LLMHealthStatus,
   MemoryStatus,
   PipelineRunSummary,
   ProjectDetail,
@@ -19,17 +20,19 @@ import { ProjectCreateForm } from '@/components/forms/project-create-form'
 import { SceneCreateForm } from '@/components/forms/scene-create-form'
 import { createAuditApproval, createSceneApproval, getExportUrl, runAudit, runScenePlanning, runSceneWriting, updateMemory } from '@/lib/api'
 import { ApprovalComposer } from '@/components/projects/approval-composer'
+import { ProjectLLMConsole } from '@/components/projects/project-llm-console'
 import { ProjectMemoryBoard } from '@/components/projects/project-memory-board'
 import { ProjectPipelineTimeline } from '@/components/projects/project-pipeline-timeline'
 import { SceneWorkflowPanel } from '@/components/projects/scene-workflow-panel'
 
 interface ProjectDashboardProps {
+  llmHealth: LLMHealthStatus | null
   pipelineRuns: PipelineRunSummary[]
   projects: ProjectSummary[]
   selectedProject: ProjectDetail | null
 }
 
-export function ProjectDashboard({ pipelineRuns, projects, selectedProject }: ProjectDashboardProps) {
+export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedProject }: ProjectDashboardProps) {
   const router = useRouter()
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -193,6 +196,10 @@ export function ProjectDashboard({ pipelineRuns, projects, selectedProject }: Pr
                 </div>
               </div>
             </section>
+
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+              <ProjectLLMConsole runs={pipelineRuns} status={llmHealth} />
+            </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <ProjectMemoryBoard busyKey={busyKey} memories={selectedProject.memories} onUpdate={handleMemoryUpdate} />

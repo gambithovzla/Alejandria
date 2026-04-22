@@ -5,8 +5,10 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.core.config import Settings
+from app.services.llm_pricing import usage_from_openai
 from app.services.llm_types import (
     LLMConfigurationError,
+    ProviderStructuredResponse,
     build_structured_schema,
     parse_json_object,
     post_json,
@@ -28,7 +30,7 @@ class OpenAILLMProvider:
         prompt,
         payload: dict[str, Any],
         model: str,
-    ) -> dict[str, Any]:
+    ) -> ProviderStructuredResponse:
         if not self.settings.openai_api_key:
             raise LLMConfigurationError("NOVEL_ENGINE_OPENAI_API_KEY is required for the OpenAI provider.")
 
@@ -57,4 +59,7 @@ class OpenAILLMProvider:
         content = response["choices"][0]["message"]["content"]
         if isinstance(content, list):
             content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-        return parse_json_object(content)
+        return ProviderStructuredResponse(
+            output=parse_json_object(content),
+            usage=usage_from_openai(response, provider=self.provider_name, model=model),
+        )

@@ -121,6 +121,44 @@ export interface PipelineRunSummary {
   errorMessage: string | null
   createdAt: string
   updatedAt: string
+  llm: LLMRunMetadata | null
+}
+
+export interface LLMUsageSummary {
+  inputTokens: number | null
+  outputTokens: number | null
+  totalTokens: number | null
+  cachedInputTokens: number | null
+  cacheWriteTokens: number | null
+  estimatedCostUsd: number | null
+  currency: string
+}
+
+export interface LLMRunMetadata {
+  requestedProvider: string
+  requestedModel: string
+  provider: string
+  model: string
+  usage: LLMUsageSummary | null
+  fallbackUsed: boolean
+  fallbackReason: string | null
+}
+
+export interface LLMRouteSelection {
+  provider: string
+  model: string
+}
+
+export interface LLMProviderConfiguration {
+  configured: boolean
+}
+
+export interface LLMHealthStatus {
+  status: string
+  mode: string
+  allowMockFallback: boolean
+  providers: Record<string, LLMProviderConfiguration>
+  routing: Record<string, LLMRouteSelection>
 }
 
 export interface SceneWorkflowSnapshot {
