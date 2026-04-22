@@ -1,7 +1,9 @@
+import json
 from functools import lru_cache
+from typing import Annotated
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -11,8 +13,11 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_v1_prefix: str = "/api/v1"
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/novel_engine"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    database_url: str = Field(
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/novel_engine",
+        validation_alias=AliasChoices("NOVEL_ENGINE_DATABASE_URL", "DATABASE_URL"),
+    )
+    cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["http://localhost:3000"])
     llm_provider: str = "router"
     llm_model: str = ""
     llm_allow_mock_fallback: bool = True
@@ -38,6 +43,32 @@ class Settings(BaseSettings):
     anthropic_api_version: str = "2023-06-01"
     moonshot_api_key: str | None = None
     moonshot_base_url: str = "https://api.moonshot.ai/v1"
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: object) -> object:
+        if value is None or isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                return []
+            if normalized.startswith("["):
+                return json.loads(normalized)
+            return [item.strip() for item in normalized.split(",") if item.strip()]
+        return value
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip()
+        if normalized.startswith("postgres://"):
+            return "postgresql+psycopg://" + normalized[len("postgres://") :]
+        if normalized.startswith("postgresql://"):
+            return "postgresql+psycopg://" + normalized[len("postgresql://") :]
+        return normalized
 
 
 @lru_cache
