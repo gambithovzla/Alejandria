@@ -354,8 +354,12 @@ export async function updateMemory(
   return mapMemory(payload)
 }
 
-export function getExportUrl(projectId: string, format: 'json' | 'markdown') {
-  return format === 'json'
-    ? buildUrl(`/projects/${projectId}/export/json`)
-    : buildUrl(`/projects/${projectId}/export/markdown`)
+export function getExportUrl(projectId: string, format: 'json' | 'markdown' | 'book-markdown') {
+  if (format === 'json') {
+    return buildUrl(`/projects/${projectId}/export/json`)
+  }
+  if (format === 'book-markdown') {
+    return buildUrl(`/projects/${projectId}/export/book-markdown`)
+  }
+  return buildUrl(`/projects/${projectId}/export/markdown`)
 }

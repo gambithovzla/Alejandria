@@ -86,6 +86,15 @@ def export_project_markdown(project_id: str, db: Session = Depends(get_db)) -> R
     return Response(content=markdown, media_type="text/markdown; charset=utf-8")
 
 
+@router.get("/{project_id}/export/book-markdown")
+def export_project_book_markdown(project_id: str, db: Session = Depends(get_db)) -> Response:
+    export_service = ExportService(db)
+    markdown = export_service.export_book_markdown(project_id)
+    if markdown is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return Response(content=markdown, media_type="text/markdown; charset=utf-8")
+
+
 @router.post("/import", response_model=ProjectDetail, status_code=status.HTTP_201_CREATED)
 def import_project(payload: ProjectExport, db: Session = Depends(get_db)) -> ProjectDetail:
     project = ImportService(db).import_project(payload)
