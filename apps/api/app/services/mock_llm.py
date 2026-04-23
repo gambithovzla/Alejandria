@@ -26,11 +26,11 @@ class MockLLMProvider:
         return ProviderStructuredResponse(output=self.generate(prompt_name, payload))
 
     def generate(self, prompt_name: str, payload: dict[str, Any]) -> dict[str, Any]:
-        scene = payload["scene"]
+        scene = payload.get("scene") or payload.get("source_scene") or {}
         project = payload["project"]
-        title = scene["title"]
-        purpose = scene["purpose"]
-        brief = scene["brief"]
+        title = scene.get("title", "Unidad")
+        purpose = scene.get("purpose", "Mover el proyecto.")
+        brief = scene.get("brief", "Brief pendiente.")
         work_type = project.get("work_type", "novel")
         structure_mode = project.get("structure_mode", "scene")
         unit = project.get("unit_label") or unit_label(structure_mode)
@@ -122,6 +122,22 @@ class MockLLMProvider:
                     "El movimiento principal definido por el plan.",
                 ],
                 "editorial_rationale": f"La propuesta de rewrite responde a {revision_focus} sin reemplazar de forma silenciosa el texto base.",
+            }
+
+        if prompt_name == "scene_continue_to_next":
+            source_sequence = int(scene.get("sequence_no") or 0)
+            next_sequence = source_sequence + 1 if source_sequence > 0 else len(project.get("existing_units", [])) + 1
+            source_title = scene.get("title") or f"{unit.capitalize()} previa"
+            confirmed_memory = payload.get("confirmed_memory", [])
+            continuity_key = confirmed_memory[0]["statement"] if confirmed_memory else f"la consecuencia directa de {source_title}"
+            return {
+                "title": self._next_unit_title(work_type, unit, next_sequence, source_title),
+                "purpose": self._next_unit_purpose(work_type, unit, source_title),
+                "brief": self._next_unit_brief(work_type, unit, source_title, continuity_key),
+                "chapter_label": scene.get("chapter_label"),
+                "pov_character": pov,
+                "location": self._next_unit_context(work_type, location, continuity_key),
+                "rationale": f"La siguiente {unit} prolonga la consecuencia de {source_title} y reutiliza memoria confirmada para no romper el canon del proyecto.",
             }
 
         if prompt_name == "technical_audit":
@@ -400,3 +416,35 @@ class MockLLMProvider:
         if work_type == "practical":
             return f"Cuando aparecio la limitacion real, la {unit} dejo de prometer y empezo a operar. {pov} entendio que el metodo solo servia si soportaba costo, contexto y secuencia."
         return f"Cuando llego el giro, lo que parecia una ventaja se volvio costo. {pov} entendio que la {unit} no estaba ahi para explicar el mundo, sino para desplazarlo."
+
+    @staticmethod
+    def _next_unit_title(work_type: str, unit: str, next_sequence: int, source_title: str) -> str:
+        if work_type == "essay":
+            return f"Lo que {source_title.lower()} obliga a pensar"
+        if work_type == "practical":
+            return f"Aplicar la leccion {next_sequence}"
+        return f"{source_title}: consecuencia {next_sequence}"
+
+    @staticmethod
+    def _next_unit_purpose(work_type: str, unit: str, source_title: str) -> str:
+        if work_type == "essay":
+            return f"Llevar la tesis abierta en {source_title} hacia una objecion mas dificil y mas productiva."
+        if work_type == "practical":
+            return f"Convertir lo abierto en {source_title} en una decision aplicable con costo real."
+        return f"Desplegar la consecuencia directa de {source_title} y subir la presion de la historia."
+
+    @staticmethod
+    def _next_unit_brief(work_type: str, unit: str, source_title: str, continuity_key: str) -> str:
+        if work_type == "essay":
+            return f"La nueva {unit} toma el hallazgo de {source_title}, lo pone contra una objecion fuerte y usa {continuity_key} para volver la tesis mas precisa."
+        if work_type == "practical":
+            return f"La nueva {unit} parte de {source_title}, prueba el metodo bajo restriccion y usa {continuity_key} para evitar una solucion cosmetica."
+        return f"La nueva {unit} arranca con la secuela inmediata de {source_title}, incorpora {continuity_key} y obliga a una decision mas costosa."
+
+    @staticmethod
+    def _next_unit_context(work_type: str, location: str, continuity_key: str) -> str:
+        if work_type == "essay":
+            return f"Un debate mas tenso dentro de {location}, sostenido por {continuity_key}"
+        if work_type == "practical":
+            return f"Un caso mas exigente dentro de {location}, con {continuity_key}"
+        return f"Una version mas inestable de {location}, atravesada por {continuity_key}"

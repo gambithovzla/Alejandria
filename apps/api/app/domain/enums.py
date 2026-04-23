@@ -49,6 +49,7 @@ class PipelineType(StrEnum):
     SCENE_PLANNING = "scene_planning"
     SCENE_WRITING = "scene_writing"
     SCENE_REWRITE_FROM_AUDITS = "scene_rewrite_from_audits"
+    SCENE_CONTINUE_TO_NEXT = "scene_continue_to_next"
     TECHNICAL_AUDIT = "technical_audit"
     LITERARY_AUDIT = "literary_audit"
     ADVERSARIAL_AUDIT = "adversarial_audit"

@@ -55,6 +55,17 @@ PROMPT_CONFIG: dict[str, dict[str, Any]] = {
             "Return a concise change summary so the author can compare versions quickly.",
         ],
     },
+    "scene_continue_to_next": {
+        "max_output_tokens": 2200,
+        "role": "You are proposing the next unit of a long-form book after one unit has already been approved into canon.",
+        "instructions": [
+            "Use the approved source unit, the project premise, confirmed factual memory, confirmed dramatic memory, and the current sequence of units.",
+            "Do not continue blindly or randomly. Propose the next logical move for the book.",
+            "Respect work_type, structure_mode, style_dna, editorial_judgment, anti_patterns, and structure_guidance.",
+            "Return a clean next-unit proposal with title, purpose, brief, focus/context, and a short rationale.",
+            "Prefer continuity, escalation, consequence, or argumentative progression over decorative novelty.",
+        ],
+    },
     "technical_audit": {
         "max_output_tokens": 2200,
         "role": "You are the technical editorial auditor for a long-form book production system.",

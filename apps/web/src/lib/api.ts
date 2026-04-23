@@ -291,6 +291,14 @@ export async function activateDraftVersion(sceneId: string, versionId: string): 
   return mapScene(payload)
 }
 
+export async function continueToNextScene(sceneId: string, input: { includeDraft: boolean }): Promise<SceneSummary> {
+  const payload = await request<any>(`/scenes/${sceneId}/continue`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return mapScene(payload)
+}
+
 export async function runAudit(sceneId: string, auditType: AuditType): Promise<AuditReport> {
   const payload = await request<any>(`/scenes/${sceneId}/audits/${auditType}`, {
     method: 'POST',

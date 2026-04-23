@@ -65,6 +65,7 @@ class SceneWorkflowService:
 
         can_run_writing = planning_ready and necessity_passed
         can_rewrite_from_audits = has_draft and cls.has_actionable_audit_feedback(scene)
+        can_continue_to_next = latest_scene_approval == ApprovalDecision.APPROVE.value
         can_run_technical_audit = planning_ready and has_draft
         can_run_literary_audit = planning_ready and has_draft
         can_run_adversarial_audit = has_draft
@@ -93,6 +94,7 @@ class SceneWorkflowService:
             necessity_passed=necessity_passed,
             can_run_writing=can_run_writing,
             can_rewrite_from_audits=can_rewrite_from_audits,
+            can_continue_to_next=can_continue_to_next,
             can_run_technical_audit=can_run_technical_audit,
             can_run_literary_audit=can_run_literary_audit,
             can_run_adversarial_audit=can_run_adversarial_audit,
@@ -176,7 +178,7 @@ class SceneWorkflowService:
         if can_approve_scene and latest_scene_approval != ApprovalDecision.APPROVE.value:
             return f"Approve the {unit_label}."
         if latest_scene_approval == ApprovalDecision.APPROVE.value:
-            return f"{unit_label.capitalize()} approved. Review canon memory, export, or move into the next {unit_label}."
+            return f"{unit_label.capitalize()} approved. Generate the next {unit_label}, review canon memory, or export the project."
         return f"Inspect blockers and revise the {unit_label}."
 
     @staticmethod

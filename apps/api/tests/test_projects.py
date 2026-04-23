@@ -272,3 +272,99 @@ def test_activating_a_rewritten_version_reopens_editorial_flow(client):
     assert payload["workflow"]["latestSceneApprovalDecision"] is None
     assert payload["workflow"]["canApproveScene"] is False
     assert "technical audit" in payload["workflow"]["nextRecommendedAction"].lower()
+
+
+def test_continue_to_next_scene_creates_a_planned_followup_from_an_approved_scene(client):
+    project = _create_project(client)
+    scene = client.post(
+        f"/api/v1/projects/{project['id']}/scenes",
+        json={
+            "title": "La sala de catalogo",
+            "purpose": "Forzar a Vera a elegir entre proteger el manuscrito o seguir una pista.",
+            "brief": "Vera entra al deposito, encuentra una anotacion imposible y debe decidir si ocultarla.",
+            "povCharacter": "Vera",
+            "location": "el deposito del archivo",
+        },
+    ).json()
+
+    client.post(f"/api/v1/scenes/{scene['id']}/plan")
+    client.post(f"/api/v1/scenes/{scene['id']}/write")
+    client.post(f"/api/v1/scenes/{scene['id']}/audits/technical")
+    client.post(f"/api/v1/scenes/{scene['id']}/audits/literary")
+    adversarial = client.post(f"/api/v1/scenes/{scene['id']}/audits/adversarial").json()
+    client.post(
+        f"/api/v1/approvals/audits/{adversarial['id']}",
+        json={"decision": "approve", "reviewer": "Editor de riesgo", "notes": "Riesgo revisado."},
+    )
+    approval = client.post(
+        f"/api/v1/approvals/scenes/{scene['id']}",
+        json={"decision": "approve", "reviewer": "Editor jefe", "notes": "Cierra unidad y la vuelve canon."},
+    )
+    assert approval.status_code == 201
+
+    memory = client.get(f"/api/v1/projects/{project['id']}").json()["memories"][0]
+    client.patch(
+        f"/api/v1/projects/{project['id']}/memories/{memory['id']}",
+        json={"status": "confirmed", "notes": "Canon confirmado para continuidad."},
+    )
+
+    continue_response = client.post(
+        f"/api/v1/scenes/{scene['id']}/continue",
+        json={"includeDraft": False},
+    )
+
+    assert continue_response.status_code == 200
+    payload = continue_response.json()
+    assert payload["sequenceNo"] == 2
+    assert payload["status"] == "planned"
+    assert payload["planningPayload"] is not None
+    assert payload["draftMarkdown"] is None
+    assert payload["title"] != scene["title"]
+    assert payload["purpose"]
+    assert payload["brief"]
+    assert payload["workflow"]["canRunWriting"] is True
+
+    pipeline_runs = client.get(f"/api/v1/projects/{project['id']}/pipeline-runs").json()
+    assert any(run["pipelineType"] == "scene_continue_to_next" for run in pipeline_runs)
+
+
+def test_continue_to_next_scene_can_generate_a_first_draft(client):
+    project = _create_project(client)
+    scene = client.post(
+        f"/api/v1/projects/{project['id']}/scenes",
+        json={
+            "title": "La sala de catalogo",
+            "purpose": "Forzar a Vera a elegir entre proteger el manuscrito o seguir una pista.",
+            "brief": "Vera entra al deposito, encuentra una anotacion imposible y debe decidir si ocultarla.",
+            "povCharacter": "Vera",
+            "location": "el deposito del archivo",
+        },
+    ).json()
+
+    client.post(f"/api/v1/scenes/{scene['id']}/plan")
+    client.post(f"/api/v1/scenes/{scene['id']}/write")
+    client.post(f"/api/v1/scenes/{scene['id']}/audits/technical")
+    client.post(f"/api/v1/scenes/{scene['id']}/audits/literary")
+    adversarial = client.post(f"/api/v1/scenes/{scene['id']}/audits/adversarial").json()
+    client.post(
+        f"/api/v1/approvals/audits/{adversarial['id']}",
+        json={"decision": "approve", "reviewer": "Editor de riesgo", "notes": "Riesgo revisado."},
+    )
+    client.post(
+        f"/api/v1/approvals/scenes/{scene['id']}",
+        json={"decision": "approve", "reviewer": "Editor jefe", "notes": "Cierra unidad y la vuelve canon."},
+    )
+
+    continue_response = client.post(
+        f"/api/v1/scenes/{scene['id']}/continue",
+        json={"includeDraft": True},
+    )
+
+    assert continue_response.status_code == 200
+    payload = continue_response.json()
+    assert payload["sequenceNo"] == 2
+    assert payload["status"] == "drafted"
+    assert payload["planningPayload"] is not None
+    assert payload["draftMarkdown"]
+    assert len(payload["draftVersions"]) == 1
+    assert payload["draftVersions"][0]["sourceType"] == "scene_writing"

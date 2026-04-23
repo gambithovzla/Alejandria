@@ -20,6 +20,7 @@ export function SceneWorkflowPanel({ workflow }: { workflow: SceneWorkflowSnapsh
       <div className="mt-4 grid gap-2 text-sm text-ink/72">
         <p>Necesidad editorial: {workflow.necessityPassed ? 'validada' : 'pendiente'}</p>
         <p>Reescritura sugerida: {workflow.canRewriteFromAudits ? 'disponible' : 'no disponible'}</p>
+        <p>Continuacion guiada: {workflow.canContinueToNext ? 'habilitada' : 'pendiente de cierre editorial'}</p>
         <p>Tecnico: {workflow.technicalAuditDecision || 'pendiente'}</p>
         <p>Literario: {workflow.literaryAuditDecision || 'pendiente'}</p>
         <p>Adversarial: {workflow.adversarialAuditDecision || 'pendiente'}</p>
