@@ -100,6 +100,30 @@ class MockLLMProvider:
                 ],
             }
 
+        if prompt_name == "scene_rewrite_from_audits":
+            current_draft = scene.get("draft_markdown") or ""
+            audit_labels = [item.get("audit_type", "audit") for item in payload.get("audits", [])]
+            memory_count = len(payload.get("confirmed_memory", []))
+            revision_focus = ", ".join(audit_labels) if audit_labels else "editorial"
+            rewritten = current_draft or f"## {title}\n\nBorrador base de la {unit}."
+            rewritten += (
+                "\n\n### Revision propuesta\n\n"
+                f"Esta version aprieta la {unit} segun las observaciones de {revision_focus}, elimina explicacion redundante y sostiene mejor el hilo canonico con {memory_count} memorias confirmadas."
+            )
+            return {
+                "rewritten_excerpt_markdown": rewritten,
+                "change_summary": [
+                    f"Se comprimio la explicacion para que la {unit} avance con mas precision.",
+                    f"Se reforzo la continuidad con memorias confirmadas y con el plan activo de la {unit}.",
+                    "Se preservo la voz central mientras se limpiaron zonas blandas o repetitivas.",
+                ],
+                "preserved_strengths": [
+                    "La voz original del borrador actual.",
+                    "El movimiento principal definido por el plan.",
+                ],
+                "editorial_rationale": f"La propuesta de rewrite responde a {revision_focus} sin reemplazar de forma silenciosa el texto base.",
+            }
+
         if prompt_name == "technical_audit":
             findings = []
             if not scene.get("planning_payload"):

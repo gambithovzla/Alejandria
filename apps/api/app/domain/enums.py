@@ -48,6 +48,7 @@ class ApprovalDecision(StrEnum):
 class PipelineType(StrEnum):
     SCENE_PLANNING = "scene_planning"
     SCENE_WRITING = "scene_writing"
+    SCENE_REWRITE_FROM_AUDITS = "scene_rewrite_from_audits"
     TECHNICAL_AUDIT = "technical_audit"
     LITERARY_AUDIT = "literary_audit"
     ADVERSARIAL_AUDIT = "adversarial_audit"

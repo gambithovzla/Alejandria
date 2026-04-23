@@ -43,6 +43,18 @@ PROMPT_CONFIG: dict[str, dict[str, Any]] = {
             "Leave continuity notes and open questions instead of silently inventing canon.",
         ],
     },
+    "scene_rewrite_from_audits": {
+        "max_output_tokens": 3600,
+        "role": "You are revising one unit for a long-form book project after editorial audits.",
+        "instructions": [
+            "Treat the rewrite as an editorial proposal, not as unquestionable truth.",
+            "Keep the voice and strengths of the current draft whenever possible.",
+            "Use the plan, style_dna, editorial_judgment, anti_patterns, confirmed memory, and audit findings as hard constraints.",
+            "Correct over-explanation, cliche, moralizing, weak reasoning, continuity problems, or pressure loss when the audits point to them.",
+            "Do not invent canon that contradicts confirmed memory.",
+            "Return a concise change summary so the author can compare versions quickly.",
+        ],
+    },
     "technical_audit": {
         "max_output_tokens": 2200,
         "role": "You are the technical editorial auditor for a long-form book production system.",

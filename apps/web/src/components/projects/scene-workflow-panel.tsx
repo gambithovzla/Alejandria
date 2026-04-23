@@ -5,7 +5,7 @@ export function SceneWorkflowPanel({ workflow }: { workflow: SceneWorkflowSnapsh
     <section className="rounded-[22px] border border-ink/10 bg-white/45 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.26em] text-moss">Workflow</p>
+          <p className="text-xs uppercase tracking-[0.26em] text-moss">Siguiente paso editorial</p>
           <p className="mt-2 text-sm text-ink/74">{workflow.nextRecommendedAction}</p>
         </div>
         <span
@@ -13,12 +13,13 @@ export function SceneWorkflowPanel({ workflow }: { workflow: SceneWorkflowSnapsh
             workflow.canApproveScene ? 'border-emerald-700/20 bg-emerald-700/10 text-emerald-900' : 'border-amber-700/20 bg-amber-700/10 text-amber-900'
           }`}
         >
-          {workflow.canApproveScene ? 'Ready to approve' : 'In progress'}
+          {workflow.canApproveScene ? 'Lista para cerrar' : 'En trabajo'}
         </span>
       </div>
 
       <div className="mt-4 grid gap-2 text-sm text-ink/72">
-        <p>Necessity pass: {workflow.necessityPassed ? 'si' : 'no'}</p>
+        <p>Necesidad editorial: {workflow.necessityPassed ? 'validada' : 'pendiente'}</p>
+        <p>Reescritura sugerida: {workflow.canRewriteFromAudits ? 'disponible' : 'no disponible'}</p>
         <p>Tecnico: {workflow.technicalAuditDecision || 'pendiente'}</p>
         <p>Literario: {workflow.literaryAuditDecision || 'pendiente'}</p>
         <p>Adversarial: {workflow.adversarialAuditDecision || 'pendiente'}</p>

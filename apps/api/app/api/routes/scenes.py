@@ -46,6 +46,32 @@ def run_scene_writing(scene_id: str, db: Session = Depends(get_db)) -> SceneSumm
     return SceneSummary.model_validate(SceneRepository(db).get_detail(scene.id))
 
 
+@router.post("/{scene_id}/rewrite-from-audits", response_model=SceneSummary)
+def rewrite_scene_from_audits(scene_id: str, db: Session = Depends(get_db)) -> SceneSummary:
+    service = PipelineService(db)
+    try:
+        scene = service.rewrite_scene_from_audits(scene_id)
+    except WorkflowConflictError as error:
+        raise HTTPException(status_code=409, detail={"message": error.message, "blockers": error.blockers}) from error
+    if scene is None:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    db.commit()
+    return SceneSummary.model_validate(SceneRepository(db).get_detail(scene.id))
+
+
+@router.post("/{scene_id}/draft-versions/{version_id}/activate", response_model=SceneSummary)
+def activate_scene_draft_version(scene_id: str, version_id: str, db: Session = Depends(get_db)) -> SceneSummary:
+    service = PipelineService(db)
+    try:
+        scene = service.activate_draft_version(scene_id, version_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    if scene is None:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    db.commit()
+    return SceneSummary.model_validate(SceneRepository(db).get_detail(scene.id))
+
+
 @router.post("/{scene_id}/audits/{audit_type}", response_model=AuditReport)
 def run_audit(scene_id: str, audit_type: AuditType, db: Session = Depends(get_db)) -> AuditReport:
     service = PipelineService(db)

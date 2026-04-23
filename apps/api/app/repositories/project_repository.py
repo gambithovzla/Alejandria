@@ -32,8 +32,10 @@ class ProjectRepository:
     def get_detail(self, project_id: str) -> Project | None:
         stmt = (
             select(Project)
+            .execution_options(populate_existing=True)
             .options(
                 selectinload(Project.scenes).selectinload(Scene.audits),
+                selectinload(Project.scenes).selectinload(Scene.draft_versions),
                 selectinload(Project.memories),
             )
             .where(Project.id == project_id)

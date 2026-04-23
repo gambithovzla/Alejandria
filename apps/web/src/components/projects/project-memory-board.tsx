@@ -16,15 +16,15 @@ export function ProjectMemoryBoard({ busyKey, memories, onUpdate }: ProjectMemor
     <section className="editorial-card rounded-[28px] p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.28em] text-moss">Memory ledger</p>
+          <p className="text-xs uppercase tracking-[0.28em] text-moss">Canon y memoria</p>
           <h3 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-ink">Memoria estructurada</h3>
         </div>
         <span className="rounded-full border border-ink/10 bg-white/40 px-3 py-2 text-xs uppercase tracking-[0.22em] text-ink/66">
-          factual + dramatic
+          factual + dramatica
         </span>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 2xl:grid-cols-2">
         <MemoryColumn
           busyKey={busyKey}
           memories={factualMemories}
@@ -54,7 +54,7 @@ function MemoryColumn({
   onUpdate: (memoryId: string, status: MemoryStatus, notes: string | null) => void
 }) {
   return (
-    <section className="rounded-[24px] border border-ink/10 bg-white/42 p-4">
+    <section className="min-w-0 rounded-[24px] border border-ink/10 bg-white/42 p-4">
       <p className="text-xs uppercase tracking-[0.24em] text-brass">{kindLabel}</p>
       <div className="mt-4 grid gap-3">
         {memories.length === 0 ? (
@@ -67,18 +67,18 @@ function MemoryColumn({
           const confirmKey = `memory:${memory.id}:confirmed`
           const retireKey = `memory:${memory.id}:retired`
           return (
-            <article className="rounded-[18px] border border-ink/10 bg-[#fffdf9]/75 p-4" key={memory.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-ink">{memory.key}</p>
-                  <p className="mt-1 text-sm leading-6 text-ink/74">{memory.statement}</p>
+            <article className="min-w-0 overflow-hidden rounded-[18px] border border-ink/10 bg-[#fffdf9]/75 p-4" key={memory.id}>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="break-words font-semibold text-ink">{memory.key}</p>
+                  <p className="mt-1 break-words text-sm leading-6 text-ink/74">{memory.statement}</p>
                 </div>
                 <StatusBadge status={memory.status} />
               </div>
 
-              <div className="mt-3 grid gap-1 text-sm text-ink/62">
-                {memory.notes ? <p>{memory.notes}</p> : null}
-                {memory.sourceSceneId ? <p>Origen: {memory.sourceSceneId}</p> : null}
+              <div className="mt-3 grid min-w-0 gap-1 text-sm text-ink/62">
+                {memory.notes ? <p className="break-words">{memory.notes}</p> : null}
+                {memory.sourceSceneId ? <p className="break-all">Origen: {memory.sourceSceneId}</p> : null}
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -114,6 +114,5 @@ function StatusBadge({ status }: { status: MemoryStatus }) {
       : status === 'retired'
         ? 'border-red-700/15 bg-red-700/10 text-red-900'
         : 'border-amber-700/15 bg-amber-700/10 text-amber-900'
-
-  return <span className={`rounded-full border px-2 py-1 text-xs uppercase tracking-[0.18em] ${palette}`}>{status}</span>
+  return <span className={`shrink-0 rounded-full border px-2 py-1 text-xs uppercase tracking-[0.18em] ${palette}`}>{status}</span>
 }

@@ -26,4 +26,5 @@ class Scene(IdMixin, TimestampMixin, Base):
 
     project = relationship("Project", back_populates="scenes")
     audits = relationship("Audit", back_populates="scene", cascade="all, delete-orphan")
+    draft_versions = relationship("SceneDraftVersion", back_populates="scene", cascade="all, delete-orphan")
     pipeline_runs = relationship("PipelineRun", back_populates="scene", cascade="all, delete-orphan")

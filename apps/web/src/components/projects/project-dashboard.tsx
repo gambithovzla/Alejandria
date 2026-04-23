@@ -18,9 +18,20 @@ import type {
 
 import { ProjectCreateForm } from '@/components/forms/project-create-form'
 import { SceneCreateForm } from '@/components/forms/scene-create-form'
-import { createAuditApproval, createSceneApproval, getExportUrl, runAudit, runScenePlanning, runSceneWriting, updateMemory } from '@/lib/api'
+import {
+  activateDraftVersion,
+  createAuditApproval,
+  createSceneApproval,
+  getExportUrl,
+  rewriteSceneFromAudits,
+  runAudit,
+  runScenePlanning,
+  runSceneWriting,
+  updateMemory,
+} from '@/lib/api'
 import { ApprovalComposer } from '@/components/projects/approval-composer'
 import { ProjectEditorialProfileForm } from '@/components/projects/project-editorial-profile-form'
+import { SceneDraftVersionsPanel } from '@/components/projects/scene-draft-versions-panel'
 import { ProjectLLMConsole } from '@/components/projects/project-llm-console'
 import { ProjectMemoryBoard } from '@/components/projects/project-memory-board'
 import { ProjectPipelineTimeline } from '@/components/projects/project-pipeline-timeline'
@@ -40,7 +51,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
   const [feedback, setFeedback] = useState<string | null>(null)
   const selectedProjectCopy = selectedProject ? getProjectStructureCopy(selectedProject.structureMode) : null
 
-  async function handlePipeline(sceneId: string, action: 'plan' | 'write' | AuditType) {
+  async function handlePipeline(sceneId: string, action: 'plan' | 'write' | 'rewrite' | AuditType) {
     const key = `${sceneId}:${action}`
     setBusyKey(key)
     setFeedback(null)
@@ -50,6 +61,8 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
         await runScenePlanning(sceneId)
       } else if (action === 'write') {
         await runSceneWriting(sceneId)
+      } else if (action === 'rewrite') {
+        await rewriteSceneFromAudits(sceneId)
       } else {
         await runAudit(sceneId, action)
       }
@@ -87,6 +100,21 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
       startTransition(() => router.refresh())
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'No se pudo actualizar la memoria.')
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  async function handleDraftVersionActivation(sceneId: string, versionId: string) {
+    const key = `scene:${sceneId}:activate:${versionId}`
+    setBusyKey(key)
+    setFeedback(null)
+
+    try {
+      await activateDraftVersion(sceneId, versionId)
+      startTransition(() => router.refresh())
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'No se pudo activar la version revisada.')
     } finally {
       setBusyKey(null)
     }
@@ -307,9 +335,23 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                         />
                         <PipelineButton
                           busyKey={busyKey}
+                          disabled={!scene.workflow.canRewriteFromAudits}
+                          hint={
+                            scene.workflow.canRewriteFromAudits
+                              ? `Genera una propuesta revisada de la ${selectedProjectCopy?.singular} sin pisar el draft actual.`
+                              : 'Necesitas un draft y observaciones de auditoria para reescribir con apoyo de IA.'
+                          }
+                          label="Aplicar mejoras"
+                          onClick={() => handlePipeline(scene.id, 'rewrite')}
+                          sceneId={scene.id}
+                          value="rewrite"
+                          tone="primary"
+                        />
+                        <PipelineButton
+                          busyKey={busyKey}
                           disabled={!scene.workflow.canRunTechnicalAudit}
                           hint={scene.workflow.canRunTechnicalAudit ? 'Auditoria de continuidad y causalidad.' : scene.workflow.blockers.join(' ')}
-                          label="Audit tecnico"
+                          label="Auditar continuidad"
                           onClick={() => handlePipeline(scene.id, 'technical')}
                           sceneId={scene.id}
                           value="technical"
@@ -318,7 +360,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                           busyKey={busyKey}
                           disabled={!scene.workflow.canRunLiteraryAudit}
                           hint={scene.workflow.canRunLiteraryAudit ? 'Auditoria de voz, tension y subtexto.' : scene.workflow.blockers.join(' ')}
-                          label="Audit literario"
+                          label="Auditar voz"
                           onClick={() => handlePipeline(scene.id, 'literary')}
                           sceneId={scene.id}
                           value="literary"
@@ -329,7 +371,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                           hint={
                             scene.workflow.canRunAdversarialAudit ? 'Red team editorial.' : scene.workflow.blockers.join(' ')
                           }
-                          label="Audit adversarial"
+                          label="Auditar friccion"
                           onClick={() => handlePipeline(scene.id, 'adversarial')}
                           sceneId={scene.id}
                           value="adversarial"
@@ -395,6 +437,22 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                           />
                         </div>
                       </section>
+                    </div>
+
+                    {scene.workflow.latestSceneApprovalDecision === 'approve' ? (
+                      <section className="mt-5 rounded-[22px] border border-emerald-800/12 bg-emerald-50/60 p-4 text-sm text-emerald-950">
+                        Esta {selectedProjectCopy?.singular} ya esta cerrada y entra al canon del proyecto. Ahora puedes revisar memorias confirmadas,
+                        exportar el proyecto o crear manualmente la siguiente {selectedProjectCopy?.singular}.
+                      </section>
+                    ) : null}
+
+                    <div className="mt-5">
+                      <SceneDraftVersionsPanel
+                        busyKey={busyKey}
+                        onActivateVersion={handleDraftVersionActivation}
+                        scene={scene}
+                        structureMode={selectedProject.structureMode}
+                      />
                     </div>
 
                     <div className="mt-5 grid gap-3">

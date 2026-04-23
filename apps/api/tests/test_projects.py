@@ -191,3 +191,84 @@ def test_create_section_with_long_context_fields(client):
 def test_scene_context_columns_allow_long_text():
     assert isinstance(Scene.__table__.c.pov_character.type, Text)
     assert isinstance(Scene.__table__.c.location.type, Text)
+
+
+def test_rewrite_from_audits_creates_a_proposed_version_without_overwriting_current_draft(client):
+    project = _create_project(client)
+    scene = client.post(
+        f"/api/v1/projects/{project['id']}/scenes",
+        json={
+            "title": "La sala de catalogo",
+            "purpose": "Forzar a Vera a elegir entre proteger el manuscrito o seguir una pista.",
+            "brief": "Vera entra al deposito, encuentra una anotacion imposible y debe decidir si ocultarla.",
+            "povCharacter": "Vera",
+            "location": "el deposito del archivo",
+        },
+    ).json()
+
+    client.post(f"/api/v1/scenes/{scene['id']}/plan")
+    draft_response = client.post(f"/api/v1/scenes/{scene['id']}/write")
+    original_draft = draft_response.json()["draftMarkdown"]
+    client.post(f"/api/v1/scenes/{scene['id']}/audits/literary")
+
+    rewrite_response = client.post(f"/api/v1/scenes/{scene['id']}/rewrite-from-audits")
+
+    assert rewrite_response.status_code == 200
+    payload = rewrite_response.json()
+    assert payload["draftMarkdown"] == original_draft
+    assert len(payload["draftVersions"]) == 2
+    assert payload["workflow"]["canRewriteFromAudits"] is True
+
+    active_version = next(version for version in payload["draftVersions"] if version["isActive"])
+    proposal_version = next(version for version in payload["draftVersions"] if not version["isActive"])
+
+    assert active_version["sourceType"] == "scene_writing"
+    assert proposal_version["sourceType"] == "scene_rewrite_from_audits"
+    assert proposal_version["basedOnVersionId"] == active_version["id"]
+    assert proposal_version["changeSummary"]
+    assert proposal_version["draftMarkdown"] != original_draft
+
+
+def test_activating_a_rewritten_version_reopens_editorial_flow(client):
+    project = _create_project(client)
+    scene = client.post(
+        f"/api/v1/projects/{project['id']}/scenes",
+        json={
+            "title": "La sala de catalogo",
+            "purpose": "Forzar a Vera a elegir entre proteger el manuscrito o seguir una pista.",
+            "brief": "Vera entra al deposito, encuentra una anotacion imposible y debe decidir si ocultarla.",
+            "povCharacter": "Vera",
+            "location": "el deposito del archivo",
+        },
+    ).json()
+
+    client.post(f"/api/v1/scenes/{scene['id']}/plan")
+    client.post(f"/api/v1/scenes/{scene['id']}/write")
+    client.post(f"/api/v1/scenes/{scene['id']}/audits/technical")
+    client.post(f"/api/v1/scenes/{scene['id']}/audits/literary")
+    adversarial = client.post(f"/api/v1/scenes/{scene['id']}/audits/adversarial").json()
+    client.post(
+        f"/api/v1/approvals/audits/{adversarial['id']}",
+        json={"decision": "approve", "reviewer": "Editor de riesgo", "notes": "Riesgo revisado."},
+    )
+    approval = client.post(
+        f"/api/v1/approvals/scenes/{scene['id']}",
+        json={"decision": "approve", "reviewer": "Editor jefe", "notes": "Lista para revision de continuidad global."},
+    )
+    assert approval.status_code == 201
+
+    rewrite_payload = client.post(f"/api/v1/scenes/{scene['id']}/rewrite-from-audits").json()
+    proposal_version = next(version for version in rewrite_payload["draftVersions"] if not version["isActive"])
+
+    activate_response = client.post(f"/api/v1/scenes/{scene['id']}/draft-versions/{proposal_version['id']}/activate")
+
+    assert activate_response.status_code == 200
+    payload = activate_response.json()
+    assert payload["draftMarkdown"] == proposal_version["draftMarkdown"]
+    assert payload["status"] == "drafted"
+    assert payload["workflow"]["technicalAuditDecision"] is None
+    assert payload["workflow"]["literaryAuditDecision"] is None
+    assert payload["workflow"]["adversarialAuditDecision"] is None
+    assert payload["workflow"]["latestSceneApprovalDecision"] is None
+    assert payload["workflow"]["canApproveScene"] is False
+    assert "technical audit" in payload["workflow"]["nextRecommendedAction"].lower()

@@ -4,13 +4,15 @@ from sqlalchemy.orm import Session
 
 from app.domain.project_structure import build_structure_guidance, unit_label, unit_label_plural
 from app.domain.enums import AuditDecision, AuditType, MemoryKind, NecessityDecision, PipelineType, SceneStatus
+from app.models.base import utcnow
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.memory_repository import MemoryRepository
 from app.repositories.pipeline_run_repository import PipelineRunRepository
 from app.repositories.project_repository import ProjectRepository
+from app.repositories.scene_draft_version_repository import SceneDraftVersionRepository
 from app.repositories.scene_repository import SceneRepository
 from app.schemas.audit import AuditReport
-from app.schemas.scene import SceneDraft, ScenePlan
+from app.schemas.scene import SceneDraft, ScenePlan, SceneRewrite
 from app.services.scene_workflow_service import SceneWorkflowService, WorkflowConflictError
 from app.services.structured_generation import StructuredGenerationService
 
@@ -22,6 +24,7 @@ class PipelineService:
         self.project_repository = ProjectRepository(db)
         self.memory_repository = MemoryRepository(db)
         self.audit_repository = AuditRepository(db)
+        self.draft_version_repository = SceneDraftVersionRepository(db)
         self.pipeline_repository = PipelineRunRepository(db)
         self.generator = StructuredGenerationService()
 
@@ -98,8 +101,22 @@ class PipelineService:
         }
         draft_result = self.generator.generate(SceneDraft, "scene_writing", input_payload)
         draft = draft_result.parsed
+        current_version = self._ensure_active_draft_version(scene)
         scene.draft_markdown = draft.excerpt_markdown
         scene.status = SceneStatus.DRAFTED.value
+        activated_at = utcnow()
+        next_version = self.draft_version_repository.create(
+            scene_id=scene.id,
+            source_type=PipelineType.SCENE_WRITING.value,
+            source_label="Draft IA",
+            draft_markdown=draft.excerpt_markdown,
+            change_summary=[
+                f"Nuevo draft generado para la {project_context['unit_label']}.",
+            ],
+            editorial_rationale=draft.writer_intent,
+            based_on_version_id=current_version.id if current_version is not None else None,
+        )
+        self.draft_version_repository.activate(next_version, activated_at)
         self.pipeline_repository.create(
             project_id=project.id,
             scene_id=scene.id,
@@ -108,6 +125,82 @@ class PipelineService:
             input_payload={**input_payload, "llm": self._llm_metadata(draft_result)},
             output_payload=draft.model_dump(mode="json"),
         )
+        return scene
+
+    def rewrite_scene_from_audits(self, scene_id: str):
+        scene = self.scene_repository.get_detail(scene_id)
+        if scene is None:
+            return None
+        project = self.project_repository.get(scene.project_id)
+        assert project is not None
+        workflow = scene.workflow
+        if not workflow.can_rewrite_from_audits:
+            raise WorkflowConflictError("Scene rewrite is blocked by the current workflow state.", workflow.blockers)
+
+        current_version = self._ensure_active_draft_version(scene)
+        audit_map = SceneWorkflowService.latest_audit_map_for_current_draft(scene)
+        audits = list(audit_map.values())
+        if not audits:
+            raise WorkflowConflictError("No audit feedback is available for rewrite yet.", ["Run at least one audit before rewriting."])
+
+        project_context = self._project_prompt_context(project)
+        input_payload = {
+            "project": {
+                **project_context,
+                "style_dna": project.style_dna,
+                "editorial_judgment": project.editorial_judgment,
+                "anti_patterns": project.anti_patterns,
+            },
+            "scene": {
+                "title": scene.title,
+                "purpose": scene.purpose,
+                "brief": scene.brief,
+                "status": scene.status,
+                "planning_payload": scene.planning_payload,
+                "necessity_assessment": scene.necessity_assessment,
+                "draft_markdown": scene.draft_markdown,
+                "pov_character": scene.pov_character,
+                "location": scene.location,
+            },
+            "audits": [AuditReport.model_validate(audit).model_dump(mode="json") for audit in audits],
+            "confirmed_memory": self._confirmed_memory_payload(project.id),
+        }
+        rewrite_result = self.generator.generate(SceneRewrite, "scene_rewrite_from_audits", input_payload)
+        rewrite = rewrite_result.parsed
+        proposed_version = self.draft_version_repository.create(
+            scene_id=scene.id,
+            source_type=PipelineType.SCENE_REWRITE_FROM_AUDITS.value,
+            source_label=self._rewrite_source_label(audits),
+            draft_markdown=rewrite.rewritten_excerpt_markdown,
+            change_summary=rewrite.change_summary,
+            editorial_rationale=rewrite.editorial_rationale,
+            based_on_version_id=current_version.id if current_version is not None else None,
+        )
+        self.pipeline_repository.create(
+            project_id=project.id,
+            scene_id=scene.id,
+            pipeline_type=PipelineType.SCENE_REWRITE_FROM_AUDITS.value,
+            status="completed",
+            input_payload={**input_payload, "llm": self._llm_metadata(rewrite_result)},
+            output_payload={**rewrite.model_dump(mode="json"), "draft_version_id": proposed_version.id},
+        )
+        return scene
+
+    def activate_draft_version(self, scene_id: str, version_id: str):
+        scene = self.scene_repository.get(scene_id)
+        if scene is None:
+            return None
+
+        version = self.draft_version_repository.get(version_id)
+        if version is None or version.scene_id != scene_id:
+            raise ValueError("Draft version not found.")
+
+        activated_at = utcnow()
+        self.draft_version_repository.activate(version, activated_at)
+        scene.draft_markdown = version.draft_markdown
+        scene.status = SceneStatus.DRAFTED.value
+        self.db.add(scene)
+        self.db.flush()
         return scene
 
     def run_audit(self, scene_id: str, audit_type: AuditType):
@@ -181,6 +274,42 @@ class PipelineService:
             "unit_label_plural": unit_label_plural(structure_mode),
             "structure_guidance": build_structure_guidance(work_type, structure_mode),
         }
+
+    def _confirmed_memory_payload(self, project_id: str) -> list[dict[str, str | None]]:
+        memories = self.memory_repository.list_for_project(project_id)
+        confirmed = [memory for memory in memories if memory.status == "confirmed"]
+        return [
+            {
+                "kind": memory.kind,
+                "key": memory.key,
+                "statement": memory.statement,
+                "notes": memory.notes,
+            }
+            for memory in confirmed
+        ]
+
+    def _ensure_active_draft_version(self, scene):
+        active = self.draft_version_repository.get_active(scene.id)
+        if active is not None:
+            return active
+        if not scene.draft_markdown:
+            return None
+        return self.draft_version_repository.create(
+            scene_id=scene.id,
+            source_type="legacy_snapshot",
+            source_label="Draft actual",
+            draft_markdown=scene.draft_markdown,
+            change_summary=["Snapshot del draft activo antes de introducir versionado editorial."],
+            is_active=True,
+            activated_at=None,
+        )
+
+    @staticmethod
+    def _rewrite_source_label(audits) -> str:
+        labels = sorted({audit.audit_type.replace("_", " ") for audit in audits})
+        if not labels:
+            return "Propuesta editorial"
+        return f"Reescritura desde {' + '.join(labels)}"
 
     @staticmethod
     def _llm_metadata(result) -> dict[str, str | bool | None]:

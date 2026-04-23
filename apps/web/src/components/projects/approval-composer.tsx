@@ -51,10 +51,10 @@ export function ApprovalComposer({
     <form className="grid gap-3" onSubmit={handleSubmit}>
       <div className="grid gap-3 md:grid-cols-2">
         <input
-          aria-label="Reviewer"
+          aria-label="Responsable"
           className="field"
           disabled={disabled || isSubmitting}
-          placeholder="Reviewer"
+          placeholder="Responsable editorial"
           value={reviewer}
           onChange={(event) => setReviewer(event.target.value)}
         />
@@ -65,9 +65,9 @@ export function ApprovalComposer({
           value={decision}
           onChange={(event) => setDecision(event.target.value as ApprovalDecision)}
         >
-          <option value="approve">Approve</option>
-          <option value="request_changes">Request changes</option>
-          <option value="reject">Reject</option>
+          <option value="approve">Aprobar</option>
+          <option value="request_changes">Pedir cambios</option>
+          <option value="reject">Rechazar</option>
         </select>
       </div>
 
