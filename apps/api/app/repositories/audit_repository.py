@@ -25,17 +25,9 @@ class AuditRepository:
         return audit
 
     def replace_for_scene(self, scene_id: str, audit_type: AuditType, payload: AuditReport) -> Audit:
-        audit = self.get_for_scene_type(scene_id=scene_id, audit_type=audit_type)
-        if audit is None:
-            return self.create(scene_id=scene_id, payload=payload)
-
-        audit.decision = payload.decision
-        audit.summary = payload.summary
-        audit.findings = [finding.model_dump(mode="json") for finding in payload.findings]
-        audit.next_steps = payload.next_steps
-        audit.human_review_required = payload.human_review_required
-        self.db.flush()
-        return audit
+        # Keep one record per audit run so the workflow can distinguish
+        # audits that belong to the active draft version from stale ones.
+        return self.create(scene_id=scene_id, payload=payload)
 
     def get(self, audit_id: str) -> Audit | None:
         return self.db.get(Audit, audit_id)
