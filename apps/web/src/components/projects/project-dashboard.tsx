@@ -38,6 +38,7 @@ import { ProjectMemoryBoard } from '@/components/projects/project-memory-board'
 import { ProjectPipelineTimeline } from '@/components/projects/project-pipeline-timeline'
 import { SceneWorkflowPanel } from '@/components/projects/scene-workflow-panel'
 import { getProjectStructureCopy, getWorkTypeLabel } from '@/lib/project-structure'
+import { formatWorkflowMessage, getApprovalDecisionLabel, getAuditDecisionLabel, getAuditTypeLabel } from '@/lib/workflow-copy'
 
 interface ProjectDashboardProps {
   llmHealth: LLMHealthStatus | null
@@ -51,6 +52,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const selectedProjectCopy = selectedProject ? getProjectStructureCopy(selectedProject.structureMode) : null
+  const unitLabel = selectedProjectCopy?.singular ?? 'unidad'
 
   async function handlePipeline(sceneId: string, action: 'plan' | 'write' | 'rewrite' | AuditType) {
     const key = `${sceneId}:${action}`
@@ -327,7 +329,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                             Necesidad {scene.necessityAssessment?.decision || 'pendiente'}
                           </span>
                           <span className="rounded-full border border-ink/10 px-3 py-1">
-                            Proxima accion {scene.workflow.nextRecommendedAction}
+                            Proxima accion {formatWorkflowMessage(scene.workflow.nextRecommendedAction, unitLabel)}
                           </span>
                         </div>
                       </div>
@@ -349,7 +351,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                           hint={
                             scene.workflow.canRunWriting
                               ? `Genera el draft de la ${selectedProjectCopy?.singular}.`
-                              : scene.workflow.blockers.join(' ')
+                              : scene.workflow.blockers.map((blocker) => formatWorkflowMessage(blocker, unitLabel)).join(' ')
                           }
                           label="Redactar"
                           onClick={() => handlePipeline(scene.id, 'write')}
@@ -373,7 +375,11 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                         <PipelineButton
                           busyKey={busyKey}
                           disabled={!scene.workflow.canRunTechnicalAudit}
-                          hint={scene.workflow.canRunTechnicalAudit ? 'Auditoria de continuidad y causalidad.' : scene.workflow.blockers.join(' ')}
+                          hint={
+                            scene.workflow.canRunTechnicalAudit
+                              ? 'Auditoria de continuidad y causalidad.'
+                              : scene.workflow.blockers.map((blocker) => formatWorkflowMessage(blocker, unitLabel)).join(' ')
+                          }
                           label="Auditar continuidad"
                           onClick={() => handlePipeline(scene.id, 'technical')}
                           sceneId={scene.id}
@@ -382,7 +388,11 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                         <PipelineButton
                           busyKey={busyKey}
                           disabled={!scene.workflow.canRunLiteraryAudit}
-                          hint={scene.workflow.canRunLiteraryAudit ? 'Auditoria de voz, tension y subtexto.' : scene.workflow.blockers.join(' ')}
+                          hint={
+                            scene.workflow.canRunLiteraryAudit
+                              ? 'Auditoria de voz, tension y subtexto.'
+                              : scene.workflow.blockers.map((blocker) => formatWorkflowMessage(blocker, unitLabel)).join(' ')
+                          }
                           label="Auditar voz"
                           onClick={() => handlePipeline(scene.id, 'literary')}
                           sceneId={scene.id}
@@ -392,7 +402,9 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                           busyKey={busyKey}
                           disabled={!scene.workflow.canRunAdversarialAudit}
                           hint={
-                            scene.workflow.canRunAdversarialAudit ? 'Red team editorial.' : scene.workflow.blockers.join(' ')
+                            scene.workflow.canRunAdversarialAudit
+                              ? 'Red team editorial.'
+                              : scene.workflow.blockers.map((blocker) => formatWorkflowMessage(blocker, unitLabel)).join(' ')
                           }
                           label="Auditar friccion"
                           onClick={() => handlePipeline(scene.id, 'adversarial')}
@@ -427,7 +439,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                         </p>
                       </section>
 
-                      <SceneWorkflowPanel workflow={scene.workflow} />
+                      <SceneWorkflowPanel unitLabel={unitLabel} workflow={scene.workflow} />
                     </div>
 
                     <div className="mt-5 grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
@@ -448,7 +460,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-xs uppercase tracking-[0.26em] text-moss">{selectedProjectCopy?.approvalLabel}</p>
                           <span className="rounded-full border border-ink/10 px-2 py-1 text-xs uppercase tracking-[0.18em] text-ink/66">
-                            {scene.workflow.latestSceneApprovalDecision || 'pending'}
+                            {getApprovalDecisionLabel(scene.workflow.latestSceneApprovalDecision)}
                           </span>
                         </div>
                         <div className="mt-3">
@@ -459,6 +471,16 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                             submitLabel={`Registrar aprobacion de ${selectedProjectCopy?.singular}`}
                           />
                         </div>
+                        {!scene.workflow.canApproveScene && scene.workflow.blockers.length > 0 ? (
+                          <div className="mt-3 rounded-[18px] border border-red-900/10 bg-red-50/60 p-3 text-sm text-red-900">
+                            <p>Para aprobar esta {selectedProjectCopy?.singular} aun falta:</p>
+                            <ul className="mt-2 list-disc space-y-1 pl-4">
+                              {scene.workflow.blockers.map((blocker) => (
+                                <li key={blocker}>{formatWorkflowMessage(blocker, unitLabel)}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
                       </section>
                     </div>
 
@@ -550,12 +572,14 @@ function AuditCard({
   audit: AuditReport
   onSubmitApproval: (input: { reviewer: string; notes: string; decision: ApprovalDecision }) => Promise<void>
 }) {
+  const auditLabel = getAuditTypeLabel(audit.auditType)
+
   return (
     <article className="rounded-[22px] border border-ink/10 bg-white/60 p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-semibold capitalize text-ink">{audit.auditType}</p>
+        <p className="font-semibold capitalize text-ink">{auditLabel}</p>
         <span className="rounded-full border border-ink/10 px-2 py-1 text-xs uppercase tracking-[0.18em] text-ink/66">
-          {audit.decision}
+          {getAuditDecisionLabel(audit.decision)}
         </span>
       </div>
 
@@ -570,16 +594,16 @@ function AuditCard({
       ) : null}
 
       <div className="mt-4 grid gap-2 text-sm text-ink/66">
-        <p>Human review: {audit.humanReviewRequired ? 'required' : 'optional'}</p>
-        <p>Latest approval: {audit.approvals[0]?.decision || 'pending'}</p>
+        <p>Revision humana: {audit.humanReviewRequired ? 'requerida' : 'opcional'}</p>
+        <p>Ultima aprobacion: {getApprovalDecisionLabel(audit.approvals[0]?.decision)}</p>
       </div>
 
       {audit.humanReviewRequired || audit.approvals.length > 0 ? (
         <div className="mt-4">
           <ApprovalComposer
-            initialNotes={`Revision humana del audit ${audit.auditType}.`}
+            initialNotes={`Revision humana del audit ${auditLabel}.`}
             onSubmit={onSubmitApproval}
-            submitLabel={`Revisar ${audit.auditType}`}
+            submitLabel={`Revisar ${auditLabel}`}
           />
         </div>
       ) : null}

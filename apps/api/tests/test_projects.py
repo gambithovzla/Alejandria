@@ -274,6 +274,75 @@ def test_activating_a_rewritten_version_reopens_editorial_flow(client):
     assert "technical audit" in payload["workflow"]["nextRecommendedAction"].lower()
 
 
+def test_rerunning_audits_after_activating_a_rewritten_version_unlocks_the_new_version(client):
+    project = _create_project(client)
+    scene = client.post(
+        f"/api/v1/projects/{project['id']}/scenes",
+        json={
+            "title": "La sala de catalogo",
+            "purpose": "Forzar a Vera a elegir entre proteger el manuscrito o seguir una pista.",
+            "brief": "Vera entra al deposito, encuentra una anotacion imposible y debe decidir si ocultarla.",
+            "povCharacter": "Vera",
+            "location": "el deposito del archivo",
+        },
+    ).json()
+
+    client.post(f"/api/v1/scenes/{scene['id']}/plan")
+    client.post(f"/api/v1/scenes/{scene['id']}/write")
+
+    original_technical = client.post(f"/api/v1/scenes/{scene['id']}/audits/technical").json()
+    original_literary = client.post(f"/api/v1/scenes/{scene['id']}/audits/literary").json()
+    original_adversarial = client.post(f"/api/v1/scenes/{scene['id']}/audits/adversarial").json()
+    client.post(
+        f"/api/v1/approvals/audits/{original_adversarial['id']}",
+        json={"decision": "approve", "reviewer": "Editor de riesgo", "notes": "Riesgo revisado."},
+    )
+
+    rewrite_payload = client.post(f"/api/v1/scenes/{scene['id']}/rewrite-from-audits").json()
+    proposal_version = next(version for version in rewrite_payload["draftVersions"] if not version["isActive"])
+
+    activate_response = client.post(f"/api/v1/scenes/{scene['id']}/draft-versions/{proposal_version['id']}/activate")
+    assert activate_response.status_code == 200
+
+    rerun_technical = client.post(f"/api/v1/scenes/{scene['id']}/audits/technical")
+    rerun_literary = client.post(f"/api/v1/scenes/{scene['id']}/audits/literary")
+    rerun_adversarial = client.post(f"/api/v1/scenes/{scene['id']}/audits/adversarial")
+
+    assert rerun_technical.status_code == 200
+    assert rerun_literary.status_code == 200
+    assert rerun_adversarial.status_code == 200
+
+    rerun_technical_payload = rerun_technical.json()
+    rerun_literary_payload = rerun_literary.json()
+    rerun_adversarial_payload = rerun_adversarial.json()
+
+    assert rerun_technical_payload["id"] != original_technical["id"]
+    assert rerun_literary_payload["id"] != original_literary["id"]
+    assert rerun_adversarial_payload["id"] != original_adversarial["id"]
+
+    if rerun_adversarial_payload["humanReviewRequired"]:
+        audit_review = client.post(
+            f"/api/v1/approvals/audits/{rerun_adversarial_payload['id']}",
+            json={"decision": "approve", "reviewer": "Editor de riesgo", "notes": "Riesgo revisado de nuevo."},
+        )
+        assert audit_review.status_code == 201
+
+    project_detail = client.get(f"/api/v1/projects/{project['id']}")
+    assert project_detail.status_code == 200
+    scene_payload = project_detail.json()["scenes"][0]
+
+    assert scene_payload["workflow"]["technicalAuditDecision"] == rerun_technical_payload["decision"]
+    assert scene_payload["workflow"]["literaryAuditDecision"] == rerun_literary_payload["decision"]
+    assert scene_payload["workflow"]["adversarialAuditDecision"] == rerun_adversarial_payload["decision"]
+    assert scene_payload["workflow"]["canApproveScene"] is True
+
+    approval = client.post(
+        f"/api/v1/approvals/scenes/{scene['id']}",
+        json={"decision": "approve", "reviewer": "Editor jefe", "notes": "Version revisada lista para cierre."},
+    )
+    assert approval.status_code == 201
+
+
 def test_continue_to_next_scene_creates_a_planned_followup_from_an_approved_scene(client):
     project = _create_project(client)
     scene = client.post(
