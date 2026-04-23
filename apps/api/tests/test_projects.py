@@ -107,6 +107,11 @@ def test_create_project_and_scene_pipeline_flow(client):
     assert len(pipeline_runs.json()) >= 5
     assert pipeline_runs.json()[0]["inputPayload"]["llm"]["provider"] == "mock"
 
+    book_export = client.get(f"/api/v1/projects/{project['id']}/export/book-markdown")
+    assert book_export.status_code == 200
+    assert "# La ciudad invertida" in book_export.text
+    assert "## La sala de catalogo" in book_export.text
+
 
 def test_update_project_editorial_profile(client):
     project = _create_project(client)

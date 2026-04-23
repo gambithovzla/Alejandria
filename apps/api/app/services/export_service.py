@@ -72,3 +72,39 @@ class ExportService:
                 ]
             )
         return "\n".join(lines)
+
+    def export_book_markdown(self, project_id: str) -> str | None:
+        payload = self.export_project(project_id)
+        if payload is None:
+            return None
+
+        project = payload.project
+        approved_scenes = [
+            scene
+            for scene in sorted(project.scenes, key=lambda item: item.sequence_no)
+            if scene.workflow is not None and scene.workflow.latest_scene_approval_decision == "approve"
+        ]
+
+        lines = [
+            f"# {project.title}",
+            "",
+            "## Manuscrito aprobado",
+            "",
+            f"Solo incluye unidades aprobadas para lectura continua. Total: {len(approved_scenes)}.",
+        ]
+
+        if not approved_scenes:
+            lines.extend(["", "_Todavia no hay unidades aprobadas para formar el libro._"])
+            return "\n".join(lines)
+
+        for scene in approved_scenes:
+            lines.extend(
+                [
+                    "",
+                    f"## {scene.title}",
+                    "",
+                    scene.draft_markdown or "_Sin draft aprobado todavia_",
+                ]
+            )
+
+        return "\n".join(lines)
