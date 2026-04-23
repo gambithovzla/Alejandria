@@ -9,6 +9,7 @@ export type PipelineType =
   | 'scene_planning'
   | 'scene_writing'
   | 'scene_rewrite_from_audits'
+  | 'scene_continue_to_next'
   | 'technical_audit'
   | 'literary_audit'
   | 'adversarial_audit'
@@ -184,6 +185,7 @@ export interface SceneWorkflowSnapshot {
   canRunPlanning: boolean
   canRunWriting: boolean
   canRewriteFromAudits: boolean
+  canContinueToNext: boolean
   canRunTechnicalAudit: boolean
   canRunLiteraryAudit: boolean
   canRunAdversarialAudit: boolean

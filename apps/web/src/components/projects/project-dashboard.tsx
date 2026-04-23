@@ -20,6 +20,7 @@ import { ProjectCreateForm } from '@/components/forms/project-create-form'
 import { SceneCreateForm } from '@/components/forms/scene-create-form'
 import {
   activateDraftVersion,
+  continueToNextScene,
   createAuditApproval,
   createSceneApproval,
   getExportUrl,
@@ -115,6 +116,28 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
       startTransition(() => router.refresh())
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'No se pudo activar la version revisada.')
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  async function handleContinueToNextScene(sceneId: string, includeDraft: boolean) {
+    const mode = includeDraft ? 'with-draft' : 'plan-only'
+    const key = `scene:${sceneId}:continue:${mode}`
+    setBusyKey(key)
+    setFeedback(null)
+
+    try {
+      const createdScene = await continueToNextScene(sceneId, { includeDraft })
+      const unitLabel = selectedProjectCopy?.singular ?? 'unidad'
+      setFeedback(
+        includeDraft
+          ? `Se propuso la siguiente ${unitLabel} con primer draft: ${createdScene.title}.`
+          : `Se propuso la siguiente ${unitLabel} y ya quedo planificada: ${createdScene.title}.`,
+      )
+      startTransition(() => router.refresh())
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'No se pudo proponer la siguiente unidad.')
     } finally {
       setBusyKey(null)
     }
@@ -273,7 +296,7 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
                 </span>
               </div>
 
-              <div className="mb-6">
+              <div className="mb-6" id="manual-next-unit-form">
                 <SceneCreateForm projectId={selectedProject.id} structureMode={selectedProject.structureMode} />
               </div>
 
@@ -441,8 +464,35 @@ export function ProjectDashboard({ llmHealth, pipelineRuns, projects, selectedPr
 
                     {scene.workflow.latestSceneApprovalDecision === 'approve' ? (
                       <section className="mt-5 rounded-[22px] border border-emerald-800/12 bg-emerald-50/60 p-4 text-sm text-emerald-950">
-                        Esta {selectedProjectCopy?.singular} ya esta cerrada y entra al canon del proyecto. Ahora puedes revisar memorias confirmadas,
-                        exportar el proyecto o crear manualmente la siguiente {selectedProjectCopy?.singular}.
+                        <p>
+                          Esta {selectedProjectCopy?.singular} ya esta cerrada y entra al canon del proyecto. Ahora puedes crear manualmente la siguiente{' '}
+                          {selectedProjectCopy?.singular}, dejar que el sistema la proponga, revisar memorias confirmadas o exportar.
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <a className="action-button" href="#manual-next-unit-form">
+                            Crear siguiente manualmente
+                          </a>
+                          <button
+                            className="action-button action-button--primary"
+                            disabled={busyKey === `scene:${scene.id}:continue:plan-only` || !scene.workflow.canContinueToNext}
+                            onClick={() => handleContinueToNextScene(scene.id, false)}
+                            type="button"
+                          >
+                            {busyKey === `scene:${scene.id}:continue:plan-only`
+                              ? 'Proponiendo...'
+                              : `Proponer siguiente ${selectedProjectCopy?.singular}`}
+                          </button>
+                          <button
+                            className="action-button"
+                            disabled={busyKey === `scene:${scene.id}:continue:with-draft` || !scene.workflow.canContinueToNext}
+                            onClick={() => handleContinueToNextScene(scene.id, true)}
+                            type="button"
+                          >
+                            {busyKey === `scene:${scene.id}:continue:with-draft`
+                              ? 'Generando draft...'
+                              : `Proponer + primer draft`}
+                          </button>
+                        </div>
                       </section>
                     ) : null}
 

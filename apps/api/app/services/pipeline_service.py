@@ -12,7 +12,7 @@ from app.repositories.project_repository import ProjectRepository
 from app.repositories.scene_draft_version_repository import SceneDraftVersionRepository
 from app.repositories.scene_repository import SceneRepository
 from app.schemas.audit import AuditReport
-from app.schemas.scene import SceneDraft, ScenePlan, SceneRewrite
+from app.schemas.scene import SceneContinuationSuggestion, SceneCreate, SceneDraft, ScenePlan, SceneRewrite
 from app.services.scene_workflow_service import SceneWorkflowService, WorkflowConflictError
 from app.services.structured_generation import StructuredGenerationService
 
@@ -126,6 +126,73 @@ class PipelineService:
             output_payload=draft.model_dump(mode="json"),
         )
         return scene
+
+    def continue_to_next_scene(self, scene_id: str, *, include_draft: bool = False):
+        source_scene = self.scene_repository.get_detail(scene_id)
+        if source_scene is None:
+            return None
+        if not source_scene.workflow.can_continue_to_next:
+            raise WorkflowConflictError(
+                "The current scene is not ready to generate the next unit yet.",
+                ["Approve the current unit before asking the system to continue the book."],
+            )
+
+        project = self.project_repository.get_detail(source_scene.project_id)
+        assert project is not None
+        project_context = self._project_prompt_context(project)
+        confirmed_memory = self._confirmed_memory_payload(project.id)
+        input_payload = {
+            "project": {
+                **project_context,
+                "premise": project.premise,
+                "style_dna": project.style_dna,
+                "editorial_judgment": project.editorial_judgment,
+                "anti_patterns": project.anti_patterns,
+                "existing_units": self._existing_units_payload(project.scenes),
+            },
+            "source_scene": {
+                "id": source_scene.id,
+                "title": source_scene.title,
+                "purpose": source_scene.purpose,
+                "brief": source_scene.brief,
+                "chapter_label": source_scene.chapter_label,
+                "sequence_no": source_scene.sequence_no,
+                "pov_character": source_scene.pov_character,
+                "location": source_scene.location,
+                "planning_payload": source_scene.planning_payload,
+                "necessity_assessment": source_scene.necessity_assessment,
+                "draft_markdown": source_scene.draft_markdown,
+            },
+            "confirmed_memory": confirmed_memory,
+            "continuation_preferences": {"include_draft": include_draft},
+        }
+        continuation_result = self.generator.generate(SceneContinuationSuggestion, "scene_continue_to_next", input_payload)
+        suggestion = continuation_result.parsed
+
+        created_scene = self.scene_repository.create(
+            project_id=project.id,
+            payload=SceneCreate(
+                title=suggestion.title,
+                purpose=suggestion.purpose,
+                brief=suggestion.brief,
+                chapter_label=suggestion.chapter_label,
+                pov_character=suggestion.pov_character,
+                location=suggestion.location,
+            ),
+        )
+        self.pipeline_repository.create(
+            project_id=project.id,
+            scene_id=created_scene.id,
+            pipeline_type=PipelineType.SCENE_CONTINUE_TO_NEXT.value,
+            status="completed",
+            input_payload={**input_payload, "llm": self._llm_metadata(continuation_result)},
+            output_payload={**suggestion.model_dump(mode="json"), "source_scene_id": source_scene.id, "include_draft": include_draft},
+        )
+
+        planned_scene = self.run_scene_planning(created_scene.id)
+        if include_draft:
+            return self.run_scene_writing(created_scene.id)
+        return planned_scene
 
     def rewrite_scene_from_audits(self, scene_id: str):
         scene = self.scene_repository.get_detail(scene_id)
@@ -274,6 +341,20 @@ class PipelineService:
             "unit_label_plural": unit_label_plural(structure_mode),
             "structure_guidance": build_structure_guidance(work_type, structure_mode),
         }
+
+    @staticmethod
+    def _existing_units_payload(scenes) -> list[dict[str, str | int | None]]:
+        return [
+            {
+                "id": scene.id,
+                "sequence_no": scene.sequence_no,
+                "title": scene.title,
+                "purpose": scene.purpose,
+                "status": scene.status,
+                "latest_approval": getattr(getattr(scene, "workflow", None), "latest_scene_approval_decision", None),
+            }
+            for scene in sorted(scenes, key=lambda item: item.sequence_no)
+        ]
 
     def _confirmed_memory_payload(self, project_id: str) -> list[dict[str, str | None]]:
         memories = self.memory_repository.list_for_project(project_id)

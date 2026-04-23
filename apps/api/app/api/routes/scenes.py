@@ -8,7 +8,7 @@ from app.repositories.audit_repository import AuditRepository
 from app.repositories.scene_repository import SceneRepository
 from app.schemas.audit import AuditReport
 from app.schemas.pipeline import PipelineRunSummary
-from app.schemas.scene import SceneSummary
+from app.schemas.scene import SceneContinuationRequest, SceneSummary
 from app.services.pipeline_service import PipelineService
 from app.services.scene_workflow_service import WorkflowConflictError
 
@@ -51,6 +51,19 @@ def rewrite_scene_from_audits(scene_id: str, db: Session = Depends(get_db)) -> S
     service = PipelineService(db)
     try:
         scene = service.rewrite_scene_from_audits(scene_id)
+    except WorkflowConflictError as error:
+        raise HTTPException(status_code=409, detail={"message": error.message, "blockers": error.blockers}) from error
+    if scene is None:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    db.commit()
+    return SceneSummary.model_validate(SceneRepository(db).get_detail(scene.id))
+
+
+@router.post("/{scene_id}/continue", response_model=SceneSummary)
+def continue_to_next_scene(scene_id: str, payload: SceneContinuationRequest, db: Session = Depends(get_db)) -> SceneSummary:
+    service = PipelineService(db)
+    try:
+        scene = service.continue_to_next_scene(scene_id, include_draft=payload.include_draft)
     except WorkflowConflictError as error:
         raise HTTPException(status_code=409, detail={"message": error.message, "blockers": error.blockers}) from error
     if scene is None:

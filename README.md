@@ -76,6 +76,7 @@ Este scaffold deja operativo el flujo MVP:
    - scene planning
    - scene writing
    - scene rewrite from audits
+   - scene continue to next
    - technical audit
    - literary audit
    - adversarial audit
@@ -93,6 +94,7 @@ La configuracion por defecto ya deja cableada una ruta editorial razonable:
 - `scene_planning` -> `openai:gpt-5.4-mini`
 - `scene_writing` -> `anthropic:claude-sonnet-4-6`
 - `scene_rewrite_from_audits` -> `anthropic:claude-sonnet-4-6`
+- `scene_continue_to_next` -> `openai:gpt-5.4-mini`
 - `technical_audit` -> `openai:gpt-5.4`
 - `literary_audit` -> `anthropic:claude-opus-4-7`
 - `adversarial_audit` -> `openai:gpt-5.4`

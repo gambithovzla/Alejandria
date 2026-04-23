@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     llm_scene_writing_model: str = "claude-sonnet-4-6"
     llm_scene_rewrite_from_audits_provider: str = "anthropic"
     llm_scene_rewrite_from_audits_model: str = "claude-sonnet-4-6"
+    llm_scene_continue_to_next_provider: str = "openai"
+    llm_scene_continue_to_next_model: str = "gpt-5.4-mini"
     llm_technical_audit_provider: str = "openai"
     llm_technical_audit_model: str = "gpt-5.4"
     llm_literary_audit_provider: str = "anthropic"

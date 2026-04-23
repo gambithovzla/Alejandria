@@ -19,6 +19,7 @@ TASK_SELECTION_FIELDS: dict[str, tuple[str, str]] = {
     "scene_planning": ("llm_scene_planning_provider", "llm_scene_planning_model"),
     "scene_writing": ("llm_scene_writing_provider", "llm_scene_writing_model"),
     "scene_rewrite_from_audits": ("llm_scene_rewrite_from_audits_provider", "llm_scene_rewrite_from_audits_model"),
+    "scene_continue_to_next": ("llm_scene_continue_to_next_provider", "llm_scene_continue_to_next_model"),
     "technical_audit": ("llm_technical_audit_provider", "llm_technical_audit_model"),
     "literary_audit": ("llm_literary_audit_provider", "llm_literary_audit_model"),
     "adversarial_audit": ("llm_adversarial_audit_provider", "llm_adversarial_audit_model"),

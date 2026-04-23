@@ -51,6 +51,20 @@ class SceneRewrite(StrictSchemaModel):
     editorial_rationale: str
 
 
+class SceneContinuationRequest(StrictSchemaModel):
+    include_draft: bool = False
+
+
+class SceneContinuationSuggestion(StrictSchemaModel):
+    title: str
+    purpose: str
+    brief: str
+    chapter_label: str | None = None
+    pov_character: str | None = None
+    location: str | None = None
+    rationale: str
+
+
 class SceneCreate(StrictSchemaModel):
     title: str
     purpose: str
@@ -66,6 +80,7 @@ class SceneWorkflowSnapshot(StrictSchemaModel):
     can_run_planning: bool = True
     can_run_writing: bool
     can_rewrite_from_audits: bool
+    can_continue_to_next: bool
     can_run_technical_audit: bool
     can_run_literary_audit: bool
     can_run_adversarial_audit: bool

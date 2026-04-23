@@ -32,7 +32,7 @@ export function ProjectPipelineTimeline({ runs, scenes }: ProjectPipelineTimelin
           <article className="rounded-[20px] border border-ink/10 bg-white/45 p-4" key={run.id}>
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="font-semibold capitalize text-ink">{run.pipelineType.replaceAll('_', ' ')}</p>
+                <p className="font-semibold text-ink">{getPipelineLabel(run.pipelineType)}</p>
                 <p className="mt-1 text-sm text-ink/68">
                   {run.sceneId ? sceneMap.get(run.sceneId) ?? run.sceneId : 'Nivel proyecto'}
                 </p>
@@ -91,4 +91,17 @@ function formatUsd(value: number) {
     minimumFractionDigits: value > 0 && value < 0.01 ? 4 : 2,
     maximumFractionDigits: value > 0 && value < 0.01 ? 4 : 2,
   }).format(value)
+}
+
+function getPipelineLabel(value: PipelineRunSummary['pipelineType']) {
+  const labels: Record<PipelineRunSummary['pipelineType'], string> = {
+    scene_planning: 'Planificacion',
+    scene_writing: 'Redaccion',
+    scene_rewrite_from_audits: 'Reescritura desde auditorias',
+    scene_continue_to_next: 'Siguiente seccion propuesta',
+    technical_audit: 'Auditoria tecnica',
+    literary_audit: 'Auditoria literaria',
+    adversarial_audit: 'Auditoria adversarial',
+  }
+  return labels[value]
 }
