@@ -22,7 +22,7 @@ class SceneWorkflowService:
         necessity_decision = necessity_payload.get("decision")
         necessity_passed = necessity_decision == NecessityDecision.KEEP.value
 
-        audit_map = cls._latest_audit_map(getattr(scene, "audits", []) or [])
+        audit_map = cls.latest_audit_map_for_current_draft(scene)
         technical_audit = audit_map.get(AuditType.TECHNICAL.value)
         literary_audit = audit_map.get(AuditType.LITERARY.value)
         adversarial_audit = audit_map.get(AuditType.ADVERSARIAL.value)
@@ -58,12 +58,13 @@ class SceneWorkflowService:
                 elif approvals[0].decision in {ApprovalDecision.REQUEST_CHANGES.value, ApprovalDecision.REJECT.value}:
                     blockers.append(f"The latest human review on the {label} audit did not approve it.")
 
-        scene_approvals = getattr(scene, "approvals", []) or []
+        scene_approvals = cls.current_scene_approvals(scene)
         latest_scene_approval = scene_approvals[0].decision if scene_approvals else None
         if latest_scene_approval in {ApprovalDecision.REQUEST_CHANGES.value, ApprovalDecision.REJECT.value}:
             blockers.append(f"The latest {unit}-level human approval requested changes or rejected the {unit}.")
 
         can_run_writing = planning_ready and necessity_passed
+        can_rewrite_from_audits = has_draft and cls.has_actionable_audit_feedback(scene)
         can_run_technical_audit = planning_ready and has_draft
         can_run_literary_audit = planning_ready and has_draft
         can_run_adversarial_audit = has_draft
@@ -91,6 +92,7 @@ class SceneWorkflowService:
         return SceneWorkflowSnapshot(
             necessity_passed=necessity_passed,
             can_run_writing=can_run_writing,
+            can_rewrite_from_audits=can_rewrite_from_audits,
             can_run_technical_audit=can_run_technical_audit,
             can_run_literary_audit=can_run_literary_audit,
             can_run_adversarial_audit=can_run_adversarial_audit,
@@ -105,9 +107,35 @@ class SceneWorkflowService:
         )
 
     @staticmethod
-    def _latest_audit_map(audits: list) -> dict[str, object]:
+    def latest_audit_map_for_current_draft(scene) -> dict[str, object]:
+        return SceneWorkflowService._latest_audit_map(
+            getattr(scene, "audits", []) or [],
+            cutoff=SceneWorkflowService._version_cutoff(scene),
+        )
+
+    @staticmethod
+    def current_scene_approvals(scene) -> list:
+        approvals = getattr(scene, "approvals", []) or []
+        cutoff = SceneWorkflowService._version_cutoff(scene)
+        if cutoff is None:
+            return list(approvals)
+        return [approval for approval in approvals if approval.created_at >= cutoff]
+
+    @staticmethod
+    def has_actionable_audit_feedback(scene) -> bool:
+        for audit in SceneWorkflowService.latest_audit_map_for_current_draft(scene).values():
+            if audit.decision != AuditDecision.PASS.value:
+                return True
+            if getattr(audit, "findings", None) or getattr(audit, "next_steps", None):
+                return True
+        return False
+
+    @staticmethod
+    def _latest_audit_map(audits: list, cutoff=None) -> dict[str, object]:
         audit_map: dict[str, object] = {}
         for audit in sorted(audits, key=lambda item: item.created_at, reverse=True):
+            if cutoff is not None and audit.created_at < cutoff:
+                continue
             audit_map.setdefault(audit.audit_type, audit)
         return audit_map
 
@@ -133,6 +161,10 @@ class SceneWorkflowService:
             return f"Cut or replace this {unit_label} before continuing."
         if not has_draft:
             return f"Run {unit_label} writing."
+        if (technical_audit is not None and technical_audit.decision in {AuditDecision.NEEDS_REVISION.value, AuditDecision.BLOCKED.value}) or (
+            literary_audit is not None and literary_audit.decision in {AuditDecision.NEEDS_REVISION.value, AuditDecision.BLOCKED.value}
+        ) or (adversarial_audit is not None and adversarial_audit.decision in {AuditDecision.NEEDS_REVISION.value, AuditDecision.BLOCKED.value}):
+            return f"Rewrite the {unit_label} from the latest audits."
         if technical_audit is None:
             return "Run the technical audit."
         if literary_audit is None:
@@ -144,10 +176,17 @@ class SceneWorkflowService:
         if can_approve_scene and latest_scene_approval != ApprovalDecision.APPROVE.value:
             return f"Approve the {unit_label}."
         if latest_scene_approval == ApprovalDecision.APPROVE.value:
-            return f"{unit_label.capitalize()} approved."
+            return f"{unit_label.capitalize()} approved. Review canon memory, export, or move into the next {unit_label}."
         return f"Inspect blockers and revise the {unit_label}."
 
     @staticmethod
     def _unit_label(scene) -> str:
         project = getattr(scene, "project", None)
         return unit_label(getattr(project, "structure_mode", None))
+
+    @staticmethod
+    def _version_cutoff(scene):
+        active_version = next((version for version in getattr(scene, "draft_versions", []) or [] if version.is_active), None)
+        if active_version is None:
+            return None
+        return active_version.activated_at

@@ -8,6 +8,7 @@ export type StructureMode = 'scene' | 'section' | 'episode' | 'module'
 export type PipelineType =
   | 'scene_planning'
   | 'scene_writing'
+  | 'scene_rewrite_from_audits'
   | 'technical_audit'
   | 'literary_audit'
   | 'adversarial_audit'
@@ -79,6 +80,21 @@ export interface SceneDraft {
   writerIntent: string
   continuityNotes: string[]
   openQuestions: string[]
+}
+
+export interface DraftVersionSummary {
+  id: string
+  sceneId: string
+  versionNo: number
+  sourceType: string
+  sourceLabel: string
+  draftMarkdown: string
+  changeSummary: string[]
+  editorialRationale: string | null
+  basedOnVersionId: string | null
+  isActive: boolean
+  createdAt: string
+  activatedAt: string | null
 }
 
 export interface AuditFinding {
@@ -167,6 +183,7 @@ export interface SceneWorkflowSnapshot {
   necessityPassed: boolean
   canRunPlanning: boolean
   canRunWriting: boolean
+  canRewriteFromAudits: boolean
   canRunTechnicalAudit: boolean
   canRunLiteraryAudit: boolean
   canRunAdversarialAudit: boolean
@@ -194,6 +211,7 @@ export interface SceneSummary {
   planningPayload: ScenePlan | null
   necessityAssessment: NecessityAssessment | null
   draftMarkdown: string | null
+  draftVersions: DraftVersionSummary[]
   audits: AuditReport[]
   approvals: ApprovalRecord[]
   workflow: SceneWorkflowSnapshot

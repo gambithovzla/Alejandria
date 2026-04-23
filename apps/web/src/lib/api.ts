@@ -3,6 +3,7 @@ import type {
   ApprovalRecord,
   AuditReport,
   AuditType,
+  DraftVersionSummary,
   LLMHealthStatus,
   MemoryStatus,
   MemoryItem,
@@ -146,9 +147,27 @@ function mapScene(item: any): SceneSummary {
     planningPayload: item.planningPayload,
     necessityAssessment: item.necessityAssessment,
     draftMarkdown: item.draftMarkdown,
+    draftVersions: (item.draftVersions ?? []).map(mapDraftVersion),
     audits: (item.audits ?? []).map(mapAudit),
     approvals: (item.approvals ?? []).map(mapApproval),
     workflow: item.workflow,
+  }
+}
+
+function mapDraftVersion(item: any): DraftVersionSummary {
+  return {
+    id: item.id,
+    sceneId: item.sceneId,
+    versionNo: item.versionNo,
+    sourceType: item.sourceType,
+    sourceLabel: item.sourceLabel,
+    draftMarkdown: item.draftMarkdown,
+    changeSummary: item.changeSummary ?? [],
+    editorialRationale: item.editorialRationale ?? null,
+    basedOnVersionId: item.basedOnVersionId ?? null,
+    isActive: Boolean(item.isActive),
+    createdAt: item.createdAt,
+    activatedAt: item.activatedAt ?? null,
   }
 }
 
@@ -253,6 +272,20 @@ export async function runScenePlanning(sceneId: string): Promise<SceneSummary> {
 
 export async function runSceneWriting(sceneId: string): Promise<SceneSummary> {
   const payload = await request<any>(`/scenes/${sceneId}/write`, {
+    method: 'POST',
+  })
+  return mapScene(payload)
+}
+
+export async function rewriteSceneFromAudits(sceneId: string): Promise<SceneSummary> {
+  const payload = await request<any>(`/scenes/${sceneId}/rewrite-from-audits`, {
+    method: 'POST',
+  })
+  return mapScene(payload)
+}
+
+export async function activateDraftVersion(sceneId: string, versionId: string): Promise<SceneSummary> {
+  const payload = await request<any>(`/scenes/${sceneId}/draft-versions/${versionId}/activate`, {
     method: 'POST',
   })
   return mapScene(payload)

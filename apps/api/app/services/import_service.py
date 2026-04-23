@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.domain.enums import SceneStatus
 from app.models.approval import Approval
 from app.models.audit import Audit
+from app.models.draft_version import SceneDraftVersion
 from app.models.memory import ProjectMemory
 from app.models.pipeline_run import PipelineRun
 from app.models.scene import Scene
@@ -40,6 +41,22 @@ class ImportService:
             self.db.add(scene)
             self.db.flush()
             scene_id_map[original_scene_id] = scene.id
+
+            for version_payload in scene_payload.draft_versions:
+                self.db.add(
+                    SceneDraftVersion(
+                        scene_id=scene.id,
+                        version_no=version_payload.version_no,
+                        source_type=version_payload.source_type,
+                        source_label=version_payload.source_label,
+                        draft_markdown=version_payload.draft_markdown,
+                        change_summary=version_payload.change_summary,
+                        editorial_rationale=version_payload.editorial_rationale,
+                        based_on_version_id=None,
+                        is_active=version_payload.is_active,
+                        activated_at=version_payload.activated_at,
+                    )
+                )
 
             for audit_payload in scene_payload.audits:
                 audit = Audit(

@@ -17,7 +17,8 @@ class SceneRepository:
     def get_detail(self, scene_id: str) -> Scene | None:
         stmt = (
             select(Scene)
-            .options(selectinload(Scene.audits), selectinload(Scene.project))
+            .execution_options(populate_existing=True)
+            .options(selectinload(Scene.audits), selectinload(Scene.draft_versions), selectinload(Scene.project))
             .where(Scene.id == scene_id)
         )
         scene = self.db.scalar(stmt)
@@ -70,6 +71,7 @@ class SceneRepository:
         for audit in scene.audits:
             setattr(audit, "approvals", audit_approval_map.get(audit.id, []))
         scene.audits.sort(key=lambda audit: audit.created_at, reverse=True)
+        scene.draft_versions.sort(key=lambda version: (version.version_no, version.created_at), reverse=True)
         setattr(scene, "approvals", scene_approvals)
         setattr(scene, "workflow", SceneWorkflowService.build_snapshot(scene))
         return scene

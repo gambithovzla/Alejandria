@@ -5,6 +5,7 @@ from pydantic import Field
 from app.domain.enums import ApprovalDecision, AuditDecision, NecessityDecision, SceneStatus
 from app.schemas.audit import AuditReport
 from app.schemas.base import StrictSchemaModel
+from app.schemas.draft_version import SceneDraftVersionSummary
 from app.schemas.memory import MemoryCandidate
 
 
@@ -43,6 +44,13 @@ class SceneDraft(StrictSchemaModel):
     open_questions: list[str] = Field(default_factory=list)
 
 
+class SceneRewrite(StrictSchemaModel):
+    rewritten_excerpt_markdown: str
+    change_summary: list[str] = Field(default_factory=list)
+    preserved_strengths: list[str] = Field(default_factory=list)
+    editorial_rationale: str
+
+
 class SceneCreate(StrictSchemaModel):
     title: str
     purpose: str
@@ -57,6 +65,7 @@ class SceneWorkflowSnapshot(StrictSchemaModel):
     necessity_passed: bool
     can_run_planning: bool = True
     can_run_writing: bool
+    can_rewrite_from_audits: bool
     can_run_technical_audit: bool
     can_run_literary_audit: bool
     can_run_adversarial_audit: bool
@@ -84,6 +93,7 @@ class SceneSummary(StrictSchemaModel):
     planning_payload: ScenePlan | None = None
     necessity_assessment: NecessityAssessment | None = None
     draft_markdown: str | None = None
+    draft_versions: list[SceneDraftVersionSummary] = Field(default_factory=list)
     audits: list[AuditReport] = Field(default_factory=list)
     approvals: list["ApprovalRecord"] = Field(default_factory=list)
     workflow: SceneWorkflowSnapshot | None = None
